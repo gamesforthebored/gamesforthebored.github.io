@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Moloch</title>
+
+<style>
+form * {cursor: pointer}
+b {font-family: "Comic Sans MS"}
+</style>
+
+</head>
+
+<body>
+
+<h2><b>MOLOCH</b>; or, Continuous Prisoner's Dilemma</h2>
+
+<p>Rules:</p>
+
+<ul>
+<li>Every millisecond, each Cooperator gets (# of Cooperators) points,</li>
+<li>each Defector gets (2 * # of Cooperators) points, and</li>
+<li><b>MOLOCH</b> gets (# of Defectors)<sup>2</sup> points.</li>
+<!--<li>The winner is whoever gets at least twice as many points as the next highest player, including <b>MOLOCH</b>.</li>
+<li>If <b>MOLOCH</b> wins, everybody loses!</li>-->
+</ul>
+
+<input type="text" placeholder="name of game" id="gameName">
+<input type="text" placeholder="your username" id="username">
+<button onclick="joinGame();">Join game</button>
+<button onclick="startGame();">Start game</button>
+
+<hr/>
+
+<div id="gameView" style="display:block">
+
+<table border="1" id="players"></table>
+
+<form>
+<input type="radio" name="move" value="cooperate" id="cooperate" onclick="doMove(true);" checked>
+<label for="cooperate">Cooperate</label><br/>
+<input type="radio" name="move" value="defect" id="defect" onclick="doMove(false);">
+<label for="defect">Defect</label>
+</form>
+
+<br/>
+
+<table id="playersTable"></table>
+
+</div>
+
+<script src="bouncer.js"></script>
+
+<script>
+
+const bouncer = new Bouncer("wss://bouncer-server.herokuapp.com/");
+var currentGame;
+var scores = {"<b>MOLOCH</b>": 0};
+var cachedScores = {"<b>MOLOCH</b>": 0};
+const nicknames = {};
+var lastEvent;
+const events = {};
+var isCurrentlyDefecting = {};
+var gameStartedTimestamp = -1;
+
+function joinGame() {
+  document.getElementById("cooperate").checked = "checked";
+  let gameName = document.getElementById("gameName").value;
+  let username = document.getElementById("username").value;
+  if (currentGame) { bouncer.quit(currentGame); }
+  currentGame = gameName;
+  while (!bouncer.isConnected()) { /* block */ }
+  bouncer.join(gameName);
+  if (username) { bouncer.send({username: username}, gameName); }
+  document.getElementById("gameView").style.display = "block";
+  bouncer.hello((msg) => {
+    if (gameStartedTimestamp === -1 || msg.timestamp < gameStartedTimestamp) {
+      scores[msg.uid] = 0;
+      if (username) { bouncer.send({username: username}, gameName); }
+      bouncer.members(currentGame, (response) => {
+        response.members.forEach((member) => {scores[member] = 0;})
+        updatePlayersList();
+      });
+    } else {
+      bouncer.send({playersInProgress: Object.keys(scores)}, currentGame);
+    }
+  });
+  bouncer.goodbye( (msg) => {
+    delete scores[msg.uid];
+    updatePlayersList();
+  } );
+}
+
+function startGame() {
+  if (currentGame && bouncer.isConnected()) {
+    bouncer.send({start: true}, currentGame);
+  }
+}
+
+function doMove(isCooperate) {
+  if (currentGame && bouncer.isConnected() && gameStartedTimestamp !== -1) {
+    bouncer.send({move: isCooperate ? "COOPERATE" : "DEFECT"}, currentGame);
+  }
+}
+
+function updatePlayersList() {
+  let playersTable = document.getElementById("players");
+  playersTable.innerHTML = "";
+  let players = Object.keys(scores);
+  players.sort((a,b) => scores[b] - scores[a]);
+  for (var i=0; i<players.length; i++) {
+    let memberName = players[i];
+    let displayName = nicknames[memberName] || memberName
+    playersTable.innerHTML += ((memberName===bouncer.uid ? "<tr style='color:red'>" : "<tr>") + "<th>" + displayName + "</th><td>" + (scores[memberName] || 0) + "</td><td>" + (isCurrentlyDefecting[memberName] ? "DEFECT" : memberName === "<b>MOLOCH</b>" ? "." : "COOPERATE") + "</td></tr>");
+  }
+}
+
+
+function computeCachedScores() {
+  let eventTimestamps = Object.keys(events).map((x) => parseInt(x)).sort();
+  let newCachedScores = {};
+  let isDefecting = {};
+  for (let player in scores) {
+    newCachedScores[player] = 0;
+    if (player !== "<b>MOLOCH</b>") {
+      isDefecting[player] = false;
+    }
+  }
+  isCurrentlyDefecting = isDefecting;
+  var last = gameStartedTimestamp;
+  for (var i=0; i<eventTimestamps.length; i++) {
+    let duration = eventTimestamps[i] - last;
+    last = eventTimestamps[i];
+    let defectors = Object.keys(isDefecting).filter((p) => isDefecting[p]);
+    let cooperators = Object.keys(isDefecting).filter((p) => !isDefecting[p]);
+    cooperators.forEach((p) => {newCachedScores[p] += (cooperators.length * duration)});
+    defectors.forEach((p) => {newCachedScores[p] += (2 * cooperators.length * duration)});
+    newCachedScores["<b>MOLOCH</b>"] += (defectors.length * defectors.length * duration);
+    let event = events[last];
+    if (event.move === "COOPERATE") { isDefecting[event.player] = false; }
+    else if (event.move === "DEFECT") { isDefecting[event.player] = true; }
+  }
+  cachedScores = newCachedScores;
+  computeScores();
+}
+
+function computeScores() {
+  let duration = new Date() - lastEvent;
+  let newScores = {};
+  for (let player in scores) {newScores[player] = 0;}
+  let defectors = Object.keys(isCurrentlyDefecting).filter((p) => isCurrentlyDefecting[p]);
+  let cooperators = Object.keys(isCurrentlyDefecting).filter((p) => !isCurrentlyDefecting[p]);
+  cooperators.forEach((p) => {newScores[p] += (cooperators.length * duration)});
+  defectors.forEach((p) => {newScores[p] += (2 * cooperators.length * duration)});
+  newScores["<b>MOLOCH</b>"] += (defectors.length * defectors.length * duration);
+  for (let player in scores) {
+    scores[player] = cachedScores[player] + newScores[player];
+  }
+}
+
+var interval = null;
+
+bouncer.receive((msg) => {
+  if (msg.payload.start && gameStartedTimestamp === -1) {
+    gameStartedTimestamp = msg.timestamp;
+    lastEvent = gameStartedTimestamp;
+    computeCachedScores();
+    if (interval) {clearInterval(interval)}
+    interval = setInterval(function(){
+      computeScores();
+      updatePlayersList();
+    }, 100);
+  } else if (msg.payload.username) {
+    nicknames[msg.sender] = msg.payload.username;
+    updatePlayersList();
+  } else if (msg.payload.playersInProgress && msg.payload.playersInProgress.indexOf(bouncer.uid) === -1) {
+    alert("You can't join this game because it is already in progress");
+    bouncer.quit(currentGame);
+    currentGame = "";
+  } else if (msg.payload.move) {
+    lastEvent = Math.max(lastEvent, msg.timestamp);
+    events[msg.timestamp] = {move: msg.payload.move, player: msg.sender};
+    computeCachedScores();
+  }
+});
+
+</script>
+
+</body>
+
+</html>
