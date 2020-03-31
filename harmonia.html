@@ -183,6 +183,7 @@ function createDot(id, color, x, y) {
 }
 
 function moveTo(circle) {
+  if (!gameName) {return}
   const me = document.getElementById("me");
   // Move to top:
   me.ownerSVGElement.appendChild(me);
