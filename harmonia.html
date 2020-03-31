@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Harmonia</title>
+
+<style>
+h2 {text-align: center}
+svg circle {cursor: pointer}
+.playerDot {pointer-events: none}
+#me {z-index: 1}
+</style>
+
+</head>
+
+<body>
+
+<h2>Harmonia</h2>
+
+<div style="text-align: center">
+
+<input type="text" placeholder="name of game" id="gameName"/>
+<!--<input type="text" placeholder="username"/>-->
+<button onclick="joinGame()">start</button>
+
+<hr/>
+
+<svg id="svgContainer" width="560" height="560">
+
+</svg>
+
+</div>
+
+<script src="bouncer.js"></script>
+
+<script>
+
+const svgContainer = document.getElementById("svgContainer");
+const NUMBER_OF_DOTS = 16;
+const LEFT_MARGIN = 12;
+const TOP_MARGIN = 36;
+const RADIUS = 12;
+const SEPARATION = 32;
+var oscillators = [];
+const MIDDLE_C = 262;
+
+
+// http://stackoverflow.com/a/29641185
+
+var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+
+function playTone(frequency, volume, type, callback) {
+    
+    var gainNode = audioCtx.createGain();
+
+	var oscillator = audioCtx.createOscillator();
+	oscillator.connect(gainNode);
+    oscillator.frequency.value = frequency;
+    oscillator.type = type;
+    callback && (oscillator.onended = callback);
+    
+	gainNode.connect(audioCtx.destination);
+	gainNode.gain.value = volume;
+
+	oscillator.start(0);
+	return oscillator;
+}
+
+
+function coordsFor(nominalX, nominalY) {
+  var x = LEFT_MARGIN + SEPARATION*nominalX;
+  var y = TOP_MARGIN + (NUMBER_OF_DOTS-nominalY)*SEPARATION;
+  return {x:x, y:y};
+}
+
+function drawRatioLine(x, y, isMajor) {
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  const origin = coordsFor(0, 0);
+  const target = coordsFor(x*NUMBER_OF_DOTS*2, y*NUMBER_OF_DOTS*2);
+  line.setAttribute("stroke", isMajor ? "#888" : "#ccc");
+  line.setAttribute("stroke-width", isMajor ? 2 : 1);
+  line.setAttribute("x1", origin.x);
+  line.setAttribute("x2", target.x);
+  line.setAttribute("y1", origin.y);
+  line.setAttribute("y2", target.y);
+  svgContainer.appendChild(line);
+}
+
+const JUST_INTONATION = [[1,1], [9,8], [5,4], [4,3], [3,2], [5,3], [15,8]];
+
+function drawAscending(octave) {
+  for (var i=0; i<7; i++) {
+    const ji = JUST_INTONATION[i];
+    drawRatioLine(ji[1], ji[0]*octave, i===0);
+  }
+}
+
+function drawDescending(octave) {
+  for (var i=0; i<7; i++) {
+    const ji = JUST_INTONATION[i];
+    drawRatioLine(ji[0]*octave, ji[1], i===0);
+  }
+}
+
+drawAscending(0.25);
+drawAscending(0.5);
+drawAscending(1);
+drawAscending(2);
+drawRatioLine(1, 4, true);
+
+
+for (var i=1; i<=NUMBER_OF_DOTS; i++) {
+for (var j=1; j<=NUMBER_OF_DOTS; j++) {
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  const coords = coordsFor(i, j);
+  circle.setAttribute("cx", coords.x);
+  circle.setAttribute("cy", coords.y);
+  circle.setAttribute("r", RADIUS);
+  circle.setAttribute("stroke", "#000000");
+  circle.setAttribute("stroke-width", 2);
+  circle.setAttribute("fill", "transparent");
+  circle.setAttribute("onclick", "moveTo(this)");
+  circle.setAttribute("data-x", i);
+  circle.setAttribute("data-y", j);
+  circle.setAttribute("id", "CIRCLE_" + i + "_" + j);
+  svgContainer.appendChild(circle);
+}
+}
+
+for (var i=1; i<=NUMBER_OF_DOTS; i++) {
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  const coords = coordsFor(0, i);
+  text.setAttribute("x", coords.x);
+  text.setAttribute("y", RADIUS/2 + coords.y);
+  text.innerHTML = i;
+  svgContainer.appendChild(text);
+}
+
+for (var i=1; i<=NUMBER_OF_DOTS; i++) {
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  const coords = coordsFor(i, 0);
+  text.setAttribute("x", coords.x - RADIUS/2);
+  text.setAttribute("y", coords.y);
+  text.innerHTML = i;
+  svgContainer.appendChild(text);
+}
+
+function drawCrossLine(horizontal) {
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  const coords = coordsFor(0, 0);
+  if (horizontal) {
+    line.setAttribute("x1", coords.x - RADIUS/2);
+    line.setAttribute("x2", coords.x + RADIUS/2);
+    line.setAttribute("y1", coords.y);
+    line.setAttribute("y2", coords.y);
+  } else {
+    line.setAttribute("y1", coords.y - RADIUS/2);
+    line.setAttribute("y2", coords.y + RADIUS/2);
+    line.setAttribute("x1", coords.x);
+    line.setAttribute("x2", coords.x);
+  }
+  line.setAttribute("stroke", "#000000");
+  line.setAttribute("stroke-width", 2);
+  svgContainer.appendChild(line);
+}
+
+drawCrossLine(true);
+drawCrossLine(false);
+
+
+function createDot(id, color, x, y) {
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  const coords = coordsFor(x, y);
+  circle.setAttribute("cx", coords.x);
+  circle.setAttribute("cy", coords.y);
+  circle.setAttribute("data-x", x);
+  circle.setAttribute("data-y", y);
+  circle.setAttribute("r", 4);
+  circle.setAttribute("fill", color);
+  circle.setAttribute("id", id);
+  circle.setAttribute("class", "playerDot");
+  svgContainer.appendChild(circle);
+}
+
+function moveTo(circle) {
+  const me = document.getElementById("me");
+  // Move to top:
+  me.ownerSVGElement.appendChild(me);
+  const coords = coordsFor(circle.dataset.x, circle.dataset.y);
+  me.setAttribute("cx", coords.x);
+  me.setAttribute("cy", coords.y);
+  me.setAttribute("data-x", circle.dataset.x);
+  me.setAttribute("data-y", circle.dataset.y);
+  bouncer.send({x: parseInt(circle.dataset.x), y: parseInt(circle.dataset.y)}, currentGame);
+  computeHarmony();
+  refreshTones();
+}
+
+
+function computeHarmony() {
+  const playerDots = document.getElementsByClassName("playerDot");
+  const currentTones = [];
+  for (var i=0; i<playerDots.length; i++) {
+    const playerDot = playerDots[i];
+    currentTones.push([parseInt(playerDot.dataset.y), parseInt(playerDot.dataset.x)]);
+  }
+  const absoluteHarmonyScores = new Array(NUMBER_OF_DOTS+1);
+  var minHS = Infinity;
+  var maxHS = 0;
+  for (var i=1; i<=NUMBER_OF_DOTS; i++) {
+    absoluteHarmonyScores[i] = new Array(NUMBER_OF_DOTS+1);
+    for (var j=1; j<=NUMBER_OF_DOTS; j++) {
+      const harmonyScore = computeHarmonyScore(currentTones.concat([[j,i]]));
+      absoluteHarmonyScores[i][j] = harmonyScore;
+      minHS = Math.min(minHS, harmonyScore);
+      maxHS = Math.max(maxHS, harmonyScore);
+    }
+  }
+  for (var i=1; i<=NUMBER_OF_DOTS; i++) {
+    for (var j=1; j<=NUMBER_OF_DOTS; j++) {
+      // normalize to range [1, 10]
+      const normalizedHarmonyScore = 1 + 9 * (absoluteHarmonyScores[i][j] - minHS) / (maxHS - minHS);
+      const circle = document.getElementById("CIRCLE_" + i + "_" + j);
+      circle.setAttribute("stroke", colorForScore(normalizedHarmonyScore));
+    }
+  }
+
+
+
+}
+
+//----
+// https://www.w3resource.com/javascript-exercises/javascript-math-exercise-10.php
+
+function lcm_two_numbers(x, y) {
+   if ((typeof x !== 'number') || (typeof y !== 'number')) 
+    return false;
+  return (!x || !y) ? 0 : Math.abs((x * y) / gcd_two_numbers(x, y));
+}
+
+function gcd_two_numbers(x, y) {
+  x = Math.abs(x);
+  y = Math.abs(y);
+  while(y) {
+    var t = y;
+    y = x % y;
+    x = t;
+  }
+  return x;
+}
+
+//----
+
+
+
+function reduce(fraction) {
+  const lcm = lcm_two_numbers(fraction[0], fraction[1]);
+  return [lcm/fraction[1], lcm/fraction[0]];
+}
+
+
+function computeHarmonyScore(tones) {
+    var p = tones[0][1];
+    for (var i=1; i<tones.length; i++) {
+        p *= tones[i][1];
+    }
+    var nums = [];
+    for (var i=0; i<tones.length; i++) {
+        nums[i] = tones[i][0] * p / tones[i][1];
+    }
+    var g = nums[0];
+    for (var i=1; i<tones.length; i++) {
+        g = gcd_two_numbers(g, nums[i]);
+    }
+    for (var i=0; i<tones.length; i++) {
+        nums[i] /= g;
+    }
+    var max = Math.max.apply(this, nums);
+    return Math.log(max);
+
+}
+
+function colorForScore(score) {
+  return "hsl(0, 0%, " + (100 - 100/score) + "%)";
+}
+
+
+
+function refreshView() {
+  for (var uid in otherPlayers) {
+    const id = "OTHER_" + uid;
+    var dot = document.getElementById(id);
+    if (!dot) {
+      createDot(id, "#00f", otherPlayers[uid][0], otherPlayers[uid][1]);
+    } else {
+     const coords = coordsFor(otherPlayers[uid][0], otherPlayers[uid][1]);
+        dot.setAttribute("cx", coords.x);
+  dot.setAttribute("cy", coords.y);
+  dot.setAttribute("data-x", otherPlayers[uid][0]);
+  dot.setAttribute("data-y", otherPlayers[uid][1]);
+    }
+  }
+}
+
+
+function refreshTones() {
+  refreshView();
+  if (oscillators.length) {
+    for (var i=0; i<oscillators.length; i++) {
+      oscillators[i].stop(0);
+    }
+  }
+  const playerDots = document.getElementsByClassName("playerDot");
+  const currentTones = [];
+  for (var i=0; i<playerDots.length; i++) {
+    const playerDot = playerDots[i];
+    oscillators[i] = playTone(MIDDLE_C * playerDot.dataset.y/playerDot.dataset.x, 2, "triangle");
+  }
+}
+
+
+
+const bouncer = new Bouncer("wss://bouncer-server.herokuapp.com/");
+var currentGame = false;
+var otherPlayers = {};
+function joinGame() {
+  let gameName = document.getElementById("gameName").value;
+  if (currentGame) { bouncer.quit(currentGame); }
+  currentGame = gameName;
+  while (!bouncer.isConnected()) { /* block */ }
+  bouncer.join(gameName);
+  bouncer.hello((msg) => {
+    if (msg.uid !== bouncer.uid) {
+      otherPlayers[msg.uid] = [NUMBER_OF_DOTS, NUMBER_OF_DOTS];
+      const me = document.getElementById("me");
+      bouncer.send({x: me.dataset.x, y:me.dataset.y}, gameName);
+      refreshTones();
+      computeHarmony();
+
+    } else {
+      createDot("me", "#f00", NUMBER_OF_DOTS, NUMBER_OF_DOTS);
+      refreshTones();
+      computeHarmony();
+
+    }
+  });
+  bouncer.goodbye( (msg) => {
+    delete otherPlayers[msg.uid];
+    const id = "OTHER_" + msg.uid;
+    document.getElementById(id).remove();
+    refreshTones();
+    computeHarmony();
+
+  } );
+  bouncer.receive( (msg) => {
+    const sender = msg.sender;
+    if (sender !== bouncer.uid) {
+      otherPlayers[sender] = [msg.payload.x, msg.payload.y];
+      refreshTones();
+      computeHarmony();
+
+    }
+  });
+}
+
+</script>
+
+</body>
+
+</html>
