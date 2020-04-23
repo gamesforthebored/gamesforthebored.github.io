@@ -894,7 +894,11 @@ function stopRecording() {
 let stopRolling = stopRecording;
 
 window.onkeydown = function(e) {
-	if (e.key === " ") {
+	if (document.getElementById("usernameInput") === document.activeElement || 
+		document.getElementById("roomNameInput") === document.activeElement) {
+		return;
+	}
+	if (e.key === " " || e.key === "Backspace") {
 		e.preventDefault();
 	}
 	if (e.key === "ArrowLeft") {
