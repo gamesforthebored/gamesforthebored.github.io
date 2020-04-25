@@ -21,8 +21,7 @@ b {font-family: "Comic Sans MS"}
 <li>Every millisecond, each Cooperator gets (# of Cooperators) points,</li>
 <li>each Defector gets (2 * # of Cooperators) points, and</li>
 <li><b>MOLOCH</b> gets (# of Defectors)<sup>2</sup> points.</li>
-<!--<li>The winner is whoever gets at least twice as many points as the next highest player, including <b>MOLOCH</b>.</li>
-<li>If <b>MOLOCH</b> wins, everybody loses!</li>-->
+<li>The game ends at a random time determined by an exponential decay with a half-life of 1 minute. Whoever has the highest score at that time wins (even if it's <b>MOLOCH</b>).</li>
 </ul>
 
 <input type="text" placeholder="name of game" id="gameName">
@@ -62,6 +61,7 @@ var lastEvent;
 const events = {};
 var isCurrentlyDefecting = {};
 var gameStartedTimestamp = -1;
+var endingTime = 0;
 
 function joinGame() {
   document.getElementById("cooperate").checked = "checked";
@@ -74,6 +74,10 @@ function joinGame() {
   if (username) { bouncer.send({username: username}, gameName); }
   document.getElementById("gameView").style.display = "block";
   bouncer.hello((msg) => {
+    if (!endingTime) {
+      endingTime = 60000 * -Math.log(Math.random());
+    }
+    bouncer.send({setEndingTime: endingTime}, currentGame);
     if (gameStartedTimestamp === -1 || msg.timestamp < gameStartedTimestamp) {
       scores[msg.uid] = 0;
       if (username) { bouncer.send({username: username}, gameName); }
@@ -145,6 +149,7 @@ function computeCachedScores() {
 }
 
 function computeScores() {
+  let now = new Date() - 0;
   let duration = new Date() - lastEvent;
   let newScores = {};
   for (let player in scores) {newScores[player] = 0;}
@@ -155,6 +160,10 @@ function computeScores() {
   newScores["<b>MOLOCH</b>"] += (defectors.length * defectors.length * duration);
   for (let player in scores) {
     scores[player] = cachedScores[player] + newScores[player];
+  }
+  if (endingTime && endingTime < now - gameStartedTimestamp) {
+    clearInterval(interval);
+    alert("Game over!");
   }
 }
 
@@ -181,6 +190,10 @@ bouncer.receive((msg) => {
     lastEvent = Math.max(lastEvent, msg.timestamp);
     events[msg.timestamp] = {move: msg.payload.move, player: msg.sender};
     computeCachedScores();
+  } else if (msg.payload.endingTime) {
+    if (!endingTime) {
+      endingTime = msg.payload.endingTime;
+    }
   }
 });
 
