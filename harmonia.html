@@ -21,7 +21,7 @@ svg circle {cursor: pointer}
 
 <input type="text" placeholder="name of game" id="gameName"/>
 <!--<input type="text" placeholder="username"/>-->
-<button onclick="joinGame()">start</button>
+<button onclick="joinGame()">start (note: plays sound)</button>
 
 <hr/>
 
@@ -102,8 +102,8 @@ function drawDescending(octave) {
   }
 }
 
-drawAscending(0.25);
-drawAscending(0.5);
+drawAscending(1/4);
+drawAscending(1/2);
 drawAscending(1);
 drawAscending(2);
 drawRatioLine(1, 4, true);
@@ -303,7 +303,8 @@ function refreshView() {
   }
 }
 
-
+const VOLUME = 0.1;
+const WAVEFORM = "sine";
 function refreshTones() {
   refreshView();
   if (oscillators.length) {
@@ -315,7 +316,8 @@ function refreshTones() {
   const currentTones = [];
   for (var i=0; i<playerDots.length; i++) {
     const playerDot = playerDots[i];
-    oscillators[i] = playTone(MIDDLE_C * playerDot.dataset.y/playerDot.dataset.x, 2, "triangle");
+    const ratio = playerDot.dataset.y/playerDot.dataset.x;
+    oscillators[i] = playTone(MIDDLE_C * ratio, VOLUME/ratio, WAVEFORM);
   }
 }
 
