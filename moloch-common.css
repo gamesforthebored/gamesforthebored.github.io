@@ -1,0 +1,36 @@
+b {font-family: "Comic Sans MS"}
+
+#modalOverlay, #modalContent {
+  display: block;
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+#modalOverlay {
+  background-color: black;
+  opacity: 0.5;
+}
+
+#gameOverModal {
+  opacity: 1;
+  z-index: 2;
+  background-color:white;
+  width: 200px;
+  padding: 10px;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+  margin-top: 200px;
+  border: 2px solid black;
+  border-radius: 5px;
+  text-align: center;
+}
+
+button {cursor: pointer;}
+
+.invisible {display: none;}

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+<meta content="utf-8" http-equiv="encoding">
+<title>Moloch 2: This Time It's Personal</title>
+
+<link rel="stylesheet" type="text/css" href="moloch-common.css"/>
+<style>
+.myName { background-color: cyan; }
+.mol {background-color:black;}
+.self {background-color: lightgray;}
+.coop {background-color: white;}
+.def {background-color: red;}
+
+.main label {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+}
+
+.playerHeader {
+  writing-mode: sideways-lr;
+  line-height: 16px;
+  min-width: 20px;
+}
+
+th, td { padding: 6px }
+.main { padding: 0; text-align: center;}
+.main input {cursor: pointer;}
+</style>
+
+</head>
+
+<body onload="fillGameName()">
+
+<div id="modalContainer" class="invisible">
+<div id="modalOverlay"></div>
+<div id="modalContent">
+<div id="gameOverModal">
+  <h2>Game over!</h2>
+  <button onclick="hideModal()">OK</button>
+</div>
+</div>
+</div>
+
+<h2><b>MOLOCH</b> 2: This Time It's Personal</h2>
+
+<ul>
+<li>Every player has a two-way relation with every other player, in which they can Cooperate or Defect.</li>
+<li>Check the boxes in your row to switch your stance between Cooperate and Defect. (A checked box or a red cell indicates Defect.)</li>
+<li>Every millisecond,</li>
+<ul>
+<li>a Cooperate/Cooperate relation generates 2 points for each of the involved players;</li>
+<li>a Cooperate/Defect relation generates 0 points for the cooperator, 3 for the defector, and 1 for <b>MOLOCH</b>; and</li>
+<li>a Defect/Defect relation generates 1 point for each involved player and 2 points for <b>MOLOCH</b>.</li>
+</ul>
+<li>The game has a constant probability of ending at any moment, with an average length of 1 minute.</li>
+<li>At the end, whoever has the highest score wins (even if it's <b>MOLOCH</b>).</li>
+</ul>
+
+<input type="text" placeholder="name of game" id="gameName">
+<input type="text" placeholder="your username" id="username">
+<button onclick="joinGame();">Join game</button>
+<button onclick="startGame();">Start game</button>
+
+<hr/>
+
+<div id="gameView" style="display:block">
+
+<table border="1" id="players"></table>
+
+</div>
+
+<script src="bouncer.js"></script>
+<script src="moloch-common.js"></script>
+<script>
+
+const GAME_PREFIX = "kqthssjaumc1rxfaio_";
+
+var currentStancesDefecting = {};
+
+// Used in moloch-common
+function clearHistory() {
+  currentStancesDefecting = {};
+}
+function getHistory() {
+  return currentStancesDefecting;
+}
+
+function toggleCheckbox(checkbox) {
+  let id = checkbox.id;
+  let isCooperate = !checkbox.checked;
+  let otherPlayer = id.split("_")[1];
+  doMove(isCooperate, otherPlayer);
+}
+
+function doMove(isCooperate, otherPlayer) {
+  if (currentGame && bouncer.isConnected() && gameStartedTimestamp !== -1) {
+    currentStancesDefecting[bouncer.uid + "_" + otherPlayer] = !isCooperate;
+    bouncer.send({move: isCooperate ? "COOPERATE" : "DEFECT", to: otherPlayer}, currentGame);
+  }
+}
+
+function arraysAreEqual(arr1, arr2) {
+  if (arr1.length !== arr2.length) {
+    return false;
+  }
+  for (var i=0; i<arr1.length; i++) {
+    if (arr1[i] !== arr2[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Used in moloch-common
+function updatePlayersList(forceRedraw) {
+  let playersTable = document.getElementById("players");
+  let players = Object.keys(scores);
+  players.sort((a,b) => scores[b] - scores[a]);
+  let rankingHasChanged = !arraysAreEqual(players, playerRanking);
+  if (forceRedraw || !playersTable.innerHTML || rankingHasChanged) {
+    playerRanking = players;
+    var headerRowHTML = "<tr><td>Target &rarr;<br/>&darr; Actor</td>";
+    for (var j=0; j<players.length; j++) {
+      let otherMemberName = players[j];
+      if (otherMemberName === MOLOCH) {
+        continue;
+      }
+      let otherDisplayName = nicknames[otherMemberName] || otherMemberName;
+      headerRowHTML += ("<th class='" + (bouncer.uid === otherMemberName ? "myName " : "") + "playerHeader'>" + otherDisplayName + "</th>");
+    }
+    headerRowHTML += "<td></td></tr>";
+    playersTable.innerHTML = headerRowHTML;
+
+    for (var i=0; i<players.length; i++) {
+      let memberName = players[i];
+      let displayName = nicknames[memberName] || memberName;
+      let isMyRow = memberName===bouncer.uid;
+      var rowHTML = "<tr class='playerRow'><th"+(isMyRow ? " class='myName'" : "")+ ">" + displayName + "</th>";
+      for (var j=0; j<players.length; j++) {
+        let otherMemberName = players[j];
+        if (otherMemberName === MOLOCH) {
+          continue;
+        }
+        let otherDisplayName = nicknames[otherMemberName] || otherMemberName;
+        if (memberName === otherMemberName) {
+          rowHTML += "<td class='main self'>&nbsp;</td>";
+        } else {
+          var amCooperatingTowardsThem = !currentStancesDefecting[memberName + "_" + otherMemberName];
+          var className = memberName===MOLOCH? "mol" : amCooperatingTowardsThem ? "coop" : "def";
+          if (isMyRow) {
+            rowHTML += "<td class='main "+className+"'><label><input type='checkbox'"+(!amCooperatingTowardsThem ? " checked='checked'" : "")+" id='cb_"+otherMemberName+"' onclick='toggleCheckbox(this)'/></label></td>";
+          } else {
+            rowHTML += "<td class='main "+className+"'>&nbsp;</td>";
+          }
+        }
+      }
+      rowHTML += ("<td class='score'>" + scores[memberName] + "</td>");
+      rowHTML += "</tr>";
+      playersTable.innerHTML += rowHTML;
+    }
+  } else {
+    //update existing rows
+    let playerRows = playersTable.getElementsByClassName("playerRow")
+    for (var i=0; i<players.length; i++) {
+      let player = players[i];
+      let playerRow = playerRows[i];
+      let usernameCell = playerRow.getElementsByTagName("th")[0];
+      let scoreCell = playerRow.getElementsByClassName("score")[0];
+      usernameCell.innerHTML = nicknames[player] || player;
+      scoreCell.innerHTML = scores[player];
+      let mainCells = playerRow.getElementsByClassName("main");
+      var t = 0;
+      for (var j=0; j<players.length; j++) {
+        let otherPlayer = players[j];
+        if (otherPlayer === MOLOCH) {t++; continue;}
+        let mainCell = mainCells[j-t];
+        mainCell.classList.remove("moll");
+        mainCell.classList.remove("coop");
+        mainCell.classList.remove("def");
+        mainCell.classList.remove("self");
+        let amCooperatingTowardsThem = !currentStancesDefecting[player + "_" + otherPlayer];
+        let className = player===MOLOCH ? "mol" : player===otherPlayer ? "self" : amCooperatingTowardsThem ? "coop" : "def";
+        mainCell.classList.add(className);
+      }
+    }
+    let playerHeaders = playersTable.getElementsByClassName("playerHeader");
+    var t = 0;
+    for (var i=0; i<players.length; i++) {
+      let player = players[i];
+      if (player === MOLOCH) {t++; continue;}
+      let playerHeader = playerHeaders[i-t];
+      playerHeader.innerHTML = nicknames[player] || player;
+    }
+  }
+}
+
+// Used in moloch-common
+function findScoresForDuration(stancesDict, scoresDict, duration) {
+  for (let player in scores) {
+    if (player === MOLOCH) {continue;}
+    for (let otherPlayer in scores) {
+      if (otherPlayer === MOLOCH || otherPlayer === player) {continue;}
+      let defectingToOtherPlayer = stancesDict[player + "_" + otherPlayer];
+      let defectingFromOtherPlayer = stancesDict[otherPlayer + "_" + player];
+      var playerPoints = 0;
+      var molochPoints = 0;
+      if (defectingToOtherPlayer && defectingFromOtherPlayer) {
+        playerPoints = 1;
+        molochPoints = 2;
+      } else if (!defectingToOtherPlayer && defectingFromOtherPlayer) {
+        playerPoints = 0;
+        molochPoints = 1;
+      } else if (defectingToOtherPlayer && !defectingFromOtherPlayer) {
+        playerPoints = 3;
+        molochPoints = 1;
+      } else if (!defectingToOtherPlayer && !defectingFromOtherPlayer) {
+        playerPoints = 2;
+        molochPoints = 0;
+      }
+      scoresDict[player] += (playerPoints * duration);
+      if (player < otherPlayer) {
+        scoresDict[MOLOCH] += (molochPoints * duration);
+      }
+    }
+  }
+}
+
+// Used in moloch-common
+function computeCachedScores(gameOver) {
+  let eventTimestamps = Object.keys(events).map((x) => parseInt(x)).sort();
+  let newCachedScores = {};
+  let stancesDefecting = {};
+  for (let player in scores) {
+    newCachedScores[player] = 0;
+    if (player === MOLOCH) {continue;}
+    for (let otherPlayer in scores) {
+      if (otherPlayer === MOLOCH) {continue;}
+      stancesDefecting[player + "_" + otherPlayer] = false; //cooperating
+    }
+  }
+  currentStancesDefecting = stancesDefecting;
+  var last = gameStartedTimestamp;
+  for (var i=0; i<eventTimestamps.length; i++) {
+    let duration = eventTimestamps[i] - last;
+    last = eventTimestamps[i];
+    let event = events[last];
+    findScoresForDuration(stancesDefecting, newCachedScores, duration);
+    if (event.move === "COOPERATE") { stancesDefecting[event.player + "_" + event.to] = false; }
+    else if (event.move === "DEFECT") { stancesDefecting[event.player + "_" + event.to] = true; }
+  }
+  cachedScores = newCachedScores;
+  computeScores(gameOver);
+}
+
+</script>
+
+</body>
+
+</html>
