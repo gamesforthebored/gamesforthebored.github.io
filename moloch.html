@@ -2,26 +2,40 @@
 <html>
 
 <head>
-<title>Moloch</title>
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+<meta content="utf-8" http-equiv="encoding">
+<title>Moloch; or, Continuous Prisoner's Dilemma</title>
 
+<link rel="stylesheet" type="text/css" href="moloch-common.css"/>
 <style>
 form * {cursor: pointer}
-b {font-family: "Comic Sans MS"}
 </style>
 
 </head>
 
-<body>
+<body onload="fillGameName()">
+
+<div id="modalContainer" class="invisible">
+<div id="modalOverlay"></div>
+<div id="modalContent">
+<div id="gameOverModal">
+  <h2>Game over!</h2>
+  <button onclick="hideModal()">OK</button>
+</div>
+</div>
+</div>
 
 <h2><b>MOLOCH</b>; or, Continuous Prisoner's Dilemma</h2>
 
-<p>Rules:</p>
-
 <ul>
-<li>Every millisecond, each Cooperator gets (# of Cooperators) points,</li>
+<li>Every millisecond,</li>
+<ul>
+<li>each Cooperator gets (# of Cooperators) points,</li>
 <li>each Defector gets (2 * # of Cooperators) points, and</li>
 <li><b>MOLOCH</b> gets (# of Defectors)<sup>2</sup> points.</li>
-<li>The game ends at a random time determined by an exponential decay with a half-life of 1 minute. Whoever has the highest score at that time wins (even if it's <b>MOLOCH</b>).</li>
+</ul>
+<li>The game has a constant probability of ending at any moment, with an average length of 1 minute.</li>
+<li>At the end, whoever has the highest score wins (even if it's <b>MOLOCH</b>).</li>
 </ul>
 
 <input type="text" placeholder="name of game" id="gameName">
@@ -49,58 +63,20 @@ b {font-family: "Comic Sans MS"}
 </div>
 
 <script src="bouncer.js"></script>
-
+<script src="moloch-common.js"></script>
 <script>
 
-const bouncer = new Bouncer("wss://bouncer-server.herokuapp.com/");
-var currentGame;
-var scores = {"<b>MOLOCH</b>": 0};
-var cachedScores = {"<b>MOLOCH</b>": 0};
-const nicknames = {};
-var lastEvent;
-var events = {};
+const GAME_PREFIX = "405q02iq3mlyuvcikg_"; // Arbitrary string
+
 var isCurrentlyDefecting = {};
-var gameStartedTimestamp = -1;
-var endingTime = 0;
-var endingTimeSetBy = null;
 
-function joinGame() {
+// Used in moloch-common
+function clearHistory() {
+  isCurrentlyDefecting = {};
   document.getElementById("cooperate").checked = "checked";
-  let gameName = "405q02iq3mlyuvcikg_" + document.getElementById("gameName").value.toLowerCase();
-  let username = document.getElementById("username").value;
-  if (currentGame) { bouncer.quit(currentGame); }
-  currentGame = gameName;
-  while (!bouncer.isConnected()) { /* block */ }
-  bouncer.join(gameName);
-  if (username) { bouncer.send({username: username}, gameName); }
-  document.getElementById("gameView").style.display = "block";
-  bouncer.hello((msg) => {
-    if (!endingTime) {
-      endingTime = 60000 * -Math.log(Math.random());
-      endingTimeSetBy = bouncer.uid;
-    }
-    bouncer.send({setEndingTime: endingTime, by: endingTimeSetBy}, currentGame);
-    if (gameStartedTimestamp === -1 || msg.timestamp < gameStartedTimestamp) {
-      scores[msg.uid] = 0;
-      if (username) { bouncer.send({username: username}, gameName); }
-      bouncer.members(currentGame, (response) => {
-        response.members.forEach((member) => {scores[member] = 0;})
-        updatePlayersList();
-      });
-    } else {
-      bouncer.send({playersInProgress: Object.keys(scores)}, currentGame);
-    }
-  });
-  bouncer.goodbye( (msg) => {
-    delete scores[msg.uid];
-    updatePlayersList();
-  } );
 }
-
-function startGame() {
-  if (currentGame && bouncer.isConnected()) {
-    bouncer.send({start: true}, currentGame);
-  }
+function getHistory() {
+  return isCurrentlyDefecting;
 }
 
 function doMove(isCooperate) {
@@ -109,6 +85,7 @@ function doMove(isCooperate) {
   }
 }
 
+// Used in moloch-common
 function updatePlayersList() {
   let playersTable = document.getElementById("players");
   playersTable.innerHTML = "";
@@ -117,18 +94,18 @@ function updatePlayersList() {
   for (var i=0; i<players.length; i++) {
     let memberName = players[i];
     let displayName = nicknames[memberName] || memberName
-    playersTable.innerHTML += ((memberName===bouncer.uid ? "<tr style='color:red'>" : "<tr>") + "<th>" + displayName + "</th><td>" + (scores[memberName] || 0) + "</td><td>" + (isCurrentlyDefecting[memberName] ? "DEFECT" : memberName === "<b>MOLOCH</b>" ? "." : "COOPERATE") + "</td></tr>");
+    playersTable.innerHTML += ((memberName===bouncer.uid ? "<tr style='color:red'>" : "<tr>") + "<th>" + displayName + "</th><td>" + (scores[memberName] || 0) + "</td><td>" + (isCurrentlyDefecting[memberName] ? "DEFECT" : memberName === MOLOCH ? "." : "COOPERATE") + "</td></tr>");
   }
 }
 
-
+// Used in moloch-common
 function computeCachedScores(gameOver) {
   let eventTimestamps = Object.keys(events).map((x) => parseInt(x)).sort();
   let newCachedScores = {};
   let isDefecting = {};
   for (let player in scores) {
     newCachedScores[player] = 0;
-    if (player !== "<b>MOLOCH</b>") {
+    if (player !== MOLOCH) {
       isDefecting[player] = false;
     }
   }
@@ -137,11 +114,7 @@ function computeCachedScores(gameOver) {
   for (var i=0; i<eventTimestamps.length; i++) {
     let duration = eventTimestamps[i] - last;
     last = eventTimestamps[i];
-    let defectors = Object.keys(isDefecting).filter((p) => isDefecting[p]);
-    let cooperators = Object.keys(isDefecting).filter((p) => !isDefecting[p]);
-    cooperators.forEach((p) => {newCachedScores[p] += (cooperators.length * duration)});
-    defectors.forEach((p) => {newCachedScores[p] += (2 * cooperators.length * duration)});
-    newCachedScores["<b>MOLOCH</b>"] += (defectors.length * defectors.length * duration);
+    findScoresForDuration(isDefecting, newCachedScores, duration);
     let event = events[last];
     if (event.move === "COOPERATE") { isDefecting[event.player] = false; }
     else if (event.move === "DEFECT") { isDefecting[event.player] = true; }
@@ -150,67 +123,14 @@ function computeCachedScores(gameOver) {
   computeScores(gameOver);
 }
 
-function computeScores(gameOver) {
-  let now = gameOver ? gameStartedTimestamp+gameOver : new Date() - 0;
-  let duration = now - lastEvent;
-  let newScores = {};
-  for (let player in scores) {newScores[player] = 0;}
-  let defectors = Object.keys(isCurrentlyDefecting).filter((p) => isCurrentlyDefecting[p]);
-  let cooperators = Object.keys(isCurrentlyDefecting).filter((p) => !isCurrentlyDefecting[p]);
-  cooperators.forEach((p) => {newScores[p] += (cooperators.length * duration)});
-  defectors.forEach((p) => {newScores[p] += (2 * cooperators.length * duration)});
-  newScores["<b>MOLOCH</b>"] += (defectors.length * defectors.length * duration);
-  for (let player in scores) {
-    scores[player] = cachedScores[player] + newScores[player];
-  }
-  if (!gameOver && endingTime && endingTime < now - gameStartedTimestamp) {
-    clearInterval(interval);
-    interval = null;
-    computeCachedScores(Math.ceil(endingTime));
-    updatePlayersList();
-    let endingTimeToSend = 60000 * -Math.log(Math.random());
-    endingTimeSetBy = null;
-    endingTime = 0;
-    bouncer.send({setEndingTime: endingTimeToSend, by: bouncer.uid}, currentGame);
-    alert("Game over!");
-  }
+// Used in moloch-common
+function findScoresForDuration(defectingDict, scoresDict, duration) {
+  let defectors = Object.keys(defectingDict).filter((p) => defectingDict[p]);
+  let cooperators = Object.keys(defectingDict).filter((p) => !defectingDict[p]);
+  cooperators.forEach((p) => {scoresDict[p] += (cooperators.length * duration)});
+  defectors.forEach((p) => {scoresDict[p] += (2 * cooperators.length * duration)});
+  scoresDict[MOLOCH] += (defectors.length * defectors.length * duration);
 }
-
-var interval = null;
-
-bouncer.receive((msg) => {
-  if (msg.payload.start && !interval) {
-    document.getElementById("cooperate").checked = "checked";
-    gameStartedTimestamp = msg.timestamp;
-    lastEvent = gameStartedTimestamp;
-    events = {};
-    isCurrentlyDefecting = {};
-    computeCachedScores();
-    if (interval) {clearInterval(interval)}
-    interval = setInterval(function(){
-      computeScores();
-      updatePlayersList();
-    }, 100);
-  } else if (msg.payload.username) {
-    nicknames[msg.sender] = msg.payload.username;
-    updatePlayersList();
-  } else if (msg.payload.playersInProgress &&
-      msg.channel === currentGame &&
-      msg.payload.playersInProgress.indexOf(bouncer.uid) === -1) {
-    alert("You can't join this game because it is already in progress");
-    bouncer.quit(currentGame);
-    currentGame = "";
-  } else if (msg.payload.move) {
-    lastEvent = Math.max(lastEvent, msg.timestamp);
-    events[msg.timestamp] = {move: msg.payload.move, player: msg.sender};
-    computeCachedScores();
-  } else if (msg.payload.setEndingTime) {
-    if (!endingTimeSetBy || msg.payload.by > endingTimeSetBy) {
-      endingTime = msg.payload.setEndingTime;
-      endingTimeSetBy = msg.payload.by;
-    }
-  }
-});
 
 </script>
 
