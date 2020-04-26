@@ -58,14 +58,15 @@ var scores = {"<b>MOLOCH</b>": 0};
 var cachedScores = {"<b>MOLOCH</b>": 0};
 const nicknames = {};
 var lastEvent;
-const events = {};
+var events = {};
 var isCurrentlyDefecting = {};
 var gameStartedTimestamp = -1;
 var endingTime = 0;
+var endingTimeSetBy = null;
 
 function joinGame() {
   document.getElementById("cooperate").checked = "checked";
-  let gameName = document.getElementById("gameName").value;
+  let gameName = "405q02iq3mlyuvcikg_" + document.getElementById("gameName").value.toLowerCase();
   let username = document.getElementById("username").value;
   if (currentGame) { bouncer.quit(currentGame); }
   currentGame = gameName;
@@ -76,8 +77,9 @@ function joinGame() {
   bouncer.hello((msg) => {
     if (!endingTime) {
       endingTime = 60000 * -Math.log(Math.random());
+      endingTimeSetBy = bouncer.uid;
     }
-    bouncer.send({setEndingTime: endingTime}, currentGame);
+    bouncer.send({setEndingTime: endingTime, by: endingTimeSetBy}, currentGame);
     if (gameStartedTimestamp === -1 || msg.timestamp < gameStartedTimestamp) {
       scores[msg.uid] = 0;
       if (username) { bouncer.send({username: username}, gameName); }
@@ -120,7 +122,7 @@ function updatePlayersList() {
 }
 
 
-function computeCachedScores() {
+function computeCachedScores(gameOver) {
   let eventTimestamps = Object.keys(events).map((x) => parseInt(x)).sort();
   let newCachedScores = {};
   let isDefecting = {};
@@ -145,12 +147,12 @@ function computeCachedScores() {
     else if (event.move === "DEFECT") { isDefecting[event.player] = true; }
   }
   cachedScores = newCachedScores;
-  computeScores();
+  computeScores(gameOver);
 }
 
-function computeScores() {
-  let now = new Date() - 0;
-  let duration = new Date() - lastEvent;
+function computeScores(gameOver) {
+  let now = gameOver ? gameStartedTimestamp+gameOver : new Date() - 0;
+  let duration = now - lastEvent;
   let newScores = {};
   for (let player in scores) {newScores[player] = 0;}
   let defectors = Object.keys(isCurrentlyDefecting).filter((p) => isCurrentlyDefecting[p]);
@@ -161,8 +163,15 @@ function computeScores() {
   for (let player in scores) {
     scores[player] = cachedScores[player] + newScores[player];
   }
-  if (endingTime && endingTime < now - gameStartedTimestamp) {
+  if (!gameOver && endingTime && endingTime < now - gameStartedTimestamp) {
     clearInterval(interval);
+    interval = null;
+    computeCachedScores(Math.ceil(endingTime));
+    updatePlayersList();
+    let endingTimeToSend = 60000 * -Math.log(Math.random());
+    endingTimeSetBy = null;
+    endingTime = 0;
+    bouncer.send({setEndingTime: endingTimeToSend, by: bouncer.uid}, currentGame);
     alert("Game over!");
   }
 }
@@ -170,9 +179,12 @@ function computeScores() {
 var interval = null;
 
 bouncer.receive((msg) => {
-  if (msg.payload.start && gameStartedTimestamp === -1) {
+  if (msg.payload.start && !interval) {
+    document.getElementById("cooperate").checked = "checked";
     gameStartedTimestamp = msg.timestamp;
     lastEvent = gameStartedTimestamp;
+    events = {};
+    isCurrentlyDefecting = {};
     computeCachedScores();
     if (interval) {clearInterval(interval)}
     interval = setInterval(function(){
@@ -182,7 +194,9 @@ bouncer.receive((msg) => {
   } else if (msg.payload.username) {
     nicknames[msg.sender] = msg.payload.username;
     updatePlayersList();
-  } else if (msg.payload.playersInProgress && msg.payload.playersInProgress.indexOf(bouncer.uid) === -1) {
+  } else if (msg.payload.playersInProgress &&
+      msg.channel === currentGame &&
+      msg.payload.playersInProgress.indexOf(bouncer.uid) === -1) {
     alert("You can't join this game because it is already in progress");
     bouncer.quit(currentGame);
     currentGame = "";
@@ -190,9 +204,10 @@ bouncer.receive((msg) => {
     lastEvent = Math.max(lastEvent, msg.timestamp);
     events[msg.timestamp] = {move: msg.payload.move, player: msg.sender};
     computeCachedScores();
-  } else if (msg.payload.endingTime) {
-    if (!endingTime) {
-      endingTime = msg.payload.endingTime;
+  } else if (msg.payload.setEndingTime) {
+    if (!endingTimeSetBy || msg.payload.by > endingTimeSetBy) {
+      endingTime = msg.payload.setEndingTime;
+      endingTimeSetBy = msg.payload.by;
     }
   }
 });
