@@ -9,7 +9,7 @@
 <link rel="stylesheet" type="text/css" href="moloch-common.css"/>
 <style>
 .myName { background-color: cyan; }
-.mol {background-color:black;}
+.mol {background-color:black; color:white;}
 .self {background-color: lightgray;}
 .coop {background-color: white;}
 .def {background-color: red;}
@@ -127,11 +127,8 @@ function updatePlayersList(forceRedraw) {
     var headerRowHTML = "<tr><td>Target &rarr;<br/>&darr; Actor</td>";
     for (var j=0; j<players.length; j++) {
       let otherMemberName = players[j];
-      if (otherMemberName === MOLOCH) {
-        continue;
-      }
       let otherDisplayName = nicknames[otherMemberName] || otherMemberName;
-      headerRowHTML += ("<th class='" + (bouncer.uid === otherMemberName ? "myName " : "") + "playerHeader'>" + otherDisplayName + "</th>");
+      headerRowHTML += ("<th class='" + (otherMemberName===MOLOCH ? "mol " : bouncer.uid === otherMemberName ? "myName " : "") + "playerHeader'>" + otherDisplayName + "</th>");
     }
     headerRowHTML += "<td></td></tr>";
     playersTable.innerHTML = headerRowHTML;
@@ -140,14 +137,13 @@ function updatePlayersList(forceRedraw) {
       let memberName = players[i];
       let displayName = nicknames[memberName] || memberName;
       let isMyRow = memberName===bouncer.uid;
-      var rowHTML = "<tr class='playerRow'><th"+(isMyRow ? " class='myName'" : "")+ ">" + displayName + "</th>";
+      var rowHTML = "<tr class='playerRow'><th"+(memberName===MOLOCH ? " class='mol'" : isMyRow ? " class='myName'" : "")+ ">" + displayName + "</th>";
       for (var j=0; j<players.length; j++) {
         let otherMemberName = players[j];
-        if (otherMemberName === MOLOCH) {
-          continue;
-        }
         let otherDisplayName = nicknames[otherMemberName] || otherMemberName;
-        if (memberName === otherMemberName) {
+        if (otherMemberName === MOLOCH) {
+          rowHTML += "<td class='main mol'>&nbsp;</td>";
+        } else if (memberName === otherMemberName) {
           rowHTML += "<td class='main self'>&nbsp;</td>";
         } else {
           var amCooperatingTowardsThem = !currentStancesDefecting[memberName + "_" + otherMemberName];
@@ -159,7 +155,7 @@ function updatePlayersList(forceRedraw) {
           }
         }
       }
-      rowHTML += ("<td class='score'>" + scores[memberName] + "</td>");
+      rowHTML += ("<td class='score"+(memberName===MOLOCH ? " mol" : "")+"'>" + scores[memberName] + "</td>");
       rowHTML += "</tr>";
       playersTable.innerHTML += rowHTML;
     }
@@ -174,11 +170,15 @@ function updatePlayersList(forceRedraw) {
       usernameCell.innerHTML = nicknames[player] || player;
       scoreCell.innerHTML = scores[player];
       let mainCells = playerRow.getElementsByClassName("main");
-      var t = 0;
+      scoreCell.classList.remove("mol");
+      if (player === MOLOCH) {
+      	scoreCell.classList.add("mol");
+      	continue;
+      }
       for (var j=0; j<players.length; j++) {
         let otherPlayer = players[j];
-        if (otherPlayer === MOLOCH) {t++; continue;}
-        let mainCell = mainCells[j-t];
+        if (otherPlayer === MOLOCH) {continue;}
+        let mainCell = mainCells[j];
         mainCell.classList.remove("moll");
         mainCell.classList.remove("coop");
         mainCell.classList.remove("def");
@@ -189,11 +189,14 @@ function updatePlayersList(forceRedraw) {
       }
     }
     let playerHeaders = playersTable.getElementsByClassName("playerHeader");
-    var t = 0;
     for (var i=0; i<players.length; i++) {
       let player = players[i];
-      if (player === MOLOCH) {t++; continue;}
-      let playerHeader = playerHeaders[i-t];
+      let playerHeader = playerHeaders[i];
+      playerHeader.classList.remove("mol");
+      if (player === MOLOCH) {
+      	playerHeader.classList.add("mol");
+      	continue;
+      }
       playerHeader.innerHTML = nicknames[player] || player;
     }
   }
