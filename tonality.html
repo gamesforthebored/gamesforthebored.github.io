@@ -4,33 +4,31 @@
 <meta charset="utf-8"/>
 <title>Tonality Composer</title>
 <style>
+* {
+	font-family: "Lucida Console", Monaco, monospace;
+}
 #editor {
 	border: 1px solid black;
 	border-radius: 5px;
 	padding: 2px;
-	width: 802px;
+	width: 796px;
 	height: 300px;
 }
 #controls {
-	width: 806px;
+	width: 800px;
 	height: 32px;
 	font-size: 24px;
 	margin-top: 5px;
 	margin-bottom: 5px;
 }
-#controls div {
-	width: 33%;
-	float: left;
-}
 textarea, #highlights {
-	width: 802px;
+	width: 800px;
 	height: 300px;
 	margin: 0;
 	border: 0;
 	padding: 2px;
 	font-size: 14pt;
-	line-height: 16pt;
-	font-family: monospace;
+	line-height: 18pt;
 	background-color: transparent;
 	border-radius: 0;
     white-space: pre-wrap;
@@ -45,27 +43,55 @@ textarea, #highlights {
 	color: transparent;
 }
 #grid {
-	width: 806px;
+    width: 793px;
+    margin-bottom: 8px;
+    background-color: black;
+    padding: 3px 3px 20px 6px;
+    border-radius: 12px;
+}
+.row {
+	margin-bottom: 2px;
 }
 .row:nth-child(even) {
-	margin-left: 30px;
+	margin-left: 30.5px;
 }
 .clear {
 	clear: both;
 }
 .cell {
-	width: 50px;
-	height: 50px;
-	line-height: 50px;
-	border: 1px solid black;
-	border-radius: 25px;
-	font-size: 22px;
-	font-family: monospace;
+	width: 58px;
+	height: 33.49px; /* 58*sqrt(3)/3 */
+	line-height: 33.49px;
+	background-color: white;
+	border-radius: 1px;
+	font-size: 28px;
 	text-align: center;
-	margin-right: 10px;
-	/* margin-bottom: 10px + 50px*(1-sqrt(3)/2) */
-	margin-bottom: 3.3px;
+	margin-right: 3px;
+	margin-bottom: 0px;
+	margin-top: 16.74px; /* 58*sqrt(3)/6 */
 	float: left;
+	font-weight: bold;
+}
+.cell::before, .cell::after {
+	content: "";
+	width: 0;
+	display: block;
+	border-left: 29px solid transparent;
+	border-right: 29px solid transparent;
+}
+.cell::before {
+	border-bottom: 16.74px solid white;
+	margin-top: -16.3px;
+}
+.cell::after {
+	border-top: 16.74px solid white;
+	margin-top: -0.5px;
+}
+.cell.active::before {
+	border-bottom: 16.74px solid lime;
+}
+.cell.active::after {
+	border-top: 16.74px solid lime;
 }
 #highlights .active, .cell.active {
 	background-color: lime;
@@ -181,7 +207,7 @@ span.narrow {
 </div>
 
 <div id="controls">
-	<div>
+	<div style="float:left">
 		<select style="font-size: 20px" id="selector" onchange="setEditor(this)">
 			<option value="welcome">Welcome</option>
 			<option value="air">Air on the G String (Bach)</option>
@@ -191,11 +217,9 @@ span.narrow {
 			<option value="part2">2. What is tonality?</option>
 			<option value="part3">3. Coarse & fine accidentals</option>
 		</select>
-	</div>
-	<div style="text-align: center">
 		<span onclick="playSong()" id="playButton">▶️</span>
 	</div>
-	<div style="text-align: right" id="waveforms">
+	<div style="float:right; text-align: right" id="waveforms">
 		<span onclick="setWaveform(this)" id="w_sine">◯</span>
 		<span onclick="setWaveform(this)" id="w_triangle">△</span>
 		<span onclick="setWaveform(this)" id="w_square">▢</span>
@@ -205,7 +229,7 @@ span.narrow {
 </div>
 <div id="editor">
 <div id="highlights"></div>
-<textarea id="song" oninput="refreshHighlights()" onscroll="scrollEditor(this, event)"></textarea>
+<textarea id="song" oninput="refreshHighlights()" onscroll="scrollEditor(this, event)">This won't work without Javascript!</textarea>
 </div>
 
 <!-- Hidden div for defining multi-line strings -->
@@ -542,7 +566,11 @@ function compileNotation(notation) {
 		if (!token) {
 			// Do nothing
 		} else if (token === "}") {
-			commentingLevel--;
+			if (commentingLevel <= 0) {
+				invalidTokens.push(i);
+			} else {
+				commentingLevel--;
+			}
 		} else if (token === "{") {
 			commentingLevel++;
 		} else if (commentingLevel) {
@@ -592,6 +620,10 @@ function compileNotation(notation) {
 		} else if (token === "[") {
 			polyphonyStack.push([wholeNotesPerMinute, cursor, lastNoteLength, lastNoteValue, JSON.stringify(measureSignature)]);
 		} else if (token === "/") {
+			if (!polyphonyStack.length) {
+				invalidTokens.push(i);
+				continue;
+			}
 			var topOfStack = polyphonyStack[polyphonyStack.length-1];
 			wholeNotesPerMinute = topOfStack[0];
 			cursor = topOfStack[1];
@@ -599,6 +631,10 @@ function compileNotation(notation) {
 			lastNoteValue = topOfStack[3];
 			measureSignature = JSON.parse(topOfStack[4]);
 		} else if (token === "]") {
+			if (polyphonyStack.length < 1) {
+				invalidTokens.push(i);
+				continue;
+			}
 			polyphonyStack.pop();
 			// All values are now as of the last line of the polyphony, even if the lines were not the same length, which means that the next note may start while some of the lines are still playing.
 		} else {
@@ -636,7 +672,6 @@ function compileNotation(notation) {
 			if (noteLetter === "O") {
 				var writtenOctaveAdjustment = parseOctaveMarkers(octaveMarkers);
 				lastNoteValue = 12*writtenOctaveAdjustment;
-
 			} else if (noteLetter !== "R") {
 				var ksAccidentals = keySignature[noteLetter];
 				var coarseAccidentals = 0;
