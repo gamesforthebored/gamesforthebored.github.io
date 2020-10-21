@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Tonality Composer</title>
+<style>
+#editor {
+	border: 1px solid black;
+	border-radius: 5px;
+	padding: 2px;
+	width: 802px;
+	height: 300px;
+}
+#controls {
+	width: 806px;
+	height: 32px;
+	font-size: 24px;
+	margin-top: 5px;
+	margin-bottom: 5px;
+}
+#controls div {
+	width: 33%;
+	float: left;
+}
+textarea, #highlights {
+	width: 802px;
+	height: 300px;
+	margin: 0;
+	border: 0;
+	padding: 2px;
+	font-size: 14pt;
+	line-height: 16pt;
+	font-family: monospace;
+	background-color: transparent;
+	border-radius: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow: auto;
+	position: absolute;
+	resize: none;
+}
+#highlights {
+	position: absolute;
+	pointer-events: none;
+	color: transparent;
+}
+#grid {
+	width: 806px;
+}
+.row:nth-child(even) {
+	margin-left: 30px;
+}
+.clear {
+	clear: both;
+}
+.cell {
+	width: 50px;
+	height: 50px;
+	line-height: 50px;
+	border: 1px solid black;
+	border-radius: 25px;
+	font-size: 22px;
+	font-family: monospace;
+	text-align: center;
+	margin-right: 10px;
+	/* margin-bottom: 10px + 50px*(1-sqrt(3)/2) */
+	margin-bottom: 3.3px;
+	float: left;
+}
+#highlights .active, .cell.active {
+	background-color: lime;
+}
+#highlights span {
+	border-radius: 5px;
+}
+#highlights .erroneous {
+	background-color: #f44;
+	color: white;
+}
+#playButton {
+	cursor: pointer;
+}
+span.narrow {
+	margin: -3px;
+}
+#waveforms span {
+	cursor: pointer;
+	padding: 5px;
+	border-radius: 6px;
+	padding-bottom: 0;
+	font-weight: bold;
+}
+#waveforms span.selected {
+	background-color: black;
+	color: white;
+}
+</style>
+</head>
+
+<body onload="refreshHighlights()">
+
+<div id="grid">
+<div class="row">
+	<div class="cell">G⸗</div>
+	<div class="cell">D⸗</div>
+	<div class="cell">A⁻</div>
+	<div class="cell">E⁻</div>
+	<div class="cell">B⁻</div>
+	<div class="cell">F♯</div>
+	<div class="cell">C♯</div>
+	<div class="cell">G♯</div>
+	<div class="cell">D♯</div>
+	<div class="cell">A♯⁺</div>
+	<div class="cell">E♯⁺</div>
+	<div class="cell">B♯⁺</div>
+	<div class="cell">F𝄪‡</div>
+	<div class="clear"></div>
+</div>
+<div class="row">
+	<div class="cell">B<span class="narrow">♭</span>⸗</div>
+	<div class="cell">F⁻</div>
+	<div class="cell">C⁻</div>
+	<div class="cell">G⁻</div>
+	<div class="cell">D⁻</div>
+	<div class="cell">A</div>
+	<div class="cell">E</div>
+	<div class="cell">B</div>
+	<div class="cell">F♯⁺</div>
+	<div class="cell">C♯⁺</div>
+	<div class="cell">G♯⁺</div>
+	<div class="cell">D♯⁺</div>
+	<div class="clear"></div>
+</div>
+<div class="row">
+	<div class="cell">G<span class="narrow">♭</span>⸗</div>
+	<div class="cell">D<span class="narrow">♭</span>⸗</div>
+	<div class="cell">A<span class="narrow">♭</span>⁻</div>
+	<div class="cell">E<span class="narrow">♭</span>⁻</div>
+	<div class="cell">B<span class="narrow">♭</span>⁻</div>
+	<div class="cell">F</div>
+	<div class="cell">C</div>
+	<div class="cell">G</div>
+	<div class="cell">D</div>
+	<div class="cell">A⁺</div>
+	<div class="cell">E⁺</div>
+	<div class="cell">B⁺</div>
+	<div class="cell">F♯‡</div>
+	<div class="clear"></div>
+</div>
+<div class="row">
+	<div class="cell">B𝄫⸗</div>
+	<div class="cell">F<span class="narrow">♭</span>⁻</div>
+	<div class="cell">C<span class="narrow">♭</span></div>
+	<div class="cell">G<span class="narrow">♭</span>⁻</div>
+	<div class="cell">D<span class="narrow">♭</span>⁻</div>
+	<div class="cell">A<span class="narrow">♭</span></div>
+	<div class="cell">E<span class="narrow">♭</span></div>
+	<div class="cell">B<span class="narrow">♭</span></div>
+	<div class="cell">F⁺</div>
+	<div class="cell">C⁺</div>
+	<div class="cell">G⁺</div>
+	<div class="cell">D⁺</div>
+	<div class="clear"></div>
+</div>
+<div class="row">
+	<div class="cell">G𝄫⸗</div>
+	<div class="cell">D𝄫⸗</div>
+	<div class="cell">A𝄫⁻</div>
+	<div class="cell">E𝄫⁻</div>
+	<div class="cell">B𝄫⁻</div>
+	<div class="cell">F<span class="narrow">♭</span></div>
+	<div class="cell">C<span class="narrow">♭</span></div>
+	<div class="cell">G<span class="narrow">♭</span></div>
+	<div class="cell">D<span class="narrow">♭</span></div>
+	<div class="cell">A<span class="narrow">♭</span>⁺</div>
+	<div class="cell">E<span class="narrow">♭</span>⁺</div>
+	<div class="cell">B<span class="narrow">♭</span>⁺</div>
+	<div class="cell">F‡</div>
+	<div class="clear"></div>
+</div>
+</div>
+
+<div id="controls">
+	<div>
+		<select style="font-size: 20px" id="selector" onchange="setEditor(this)">
+			<option value="welcome">Welcome</option>
+			<option value="air">Air on the G String (Bach)</option>
+			<option value="canon">Canon in D (Pachelbel)</option>
+			<option value="">==========</option>
+			<option value="part1">1. Introduction</option>
+			<option value="part2">2. What is tonality?</option>
+			<option value="part3">3. Coarse & fine accidentals</option>
+		</select>
+	</div>
+	<div style="text-align: center">
+		<span onclick="playSong()" id="playButton">▶️</span>
+	</div>
+	<div style="text-align: right" id="waveforms">
+		<span onclick="setWaveform(this)" id="w_sine">◯</span>
+		<span onclick="setWaveform(this)" id="w_triangle">△</span>
+		<span onclick="setWaveform(this)" id="w_square">▢</span>
+		<span onclick="setWaveform(this)" id="w_sawtooth">☆</span>
+	</div>
+	<div class="clear"></div>
+</div>
+<div id="editor">
+<div id="highlights"></div>
+<textarea id="song" oninput="refreshHighlights()" onscroll="scrollEditor(this, event)"></textarea>
+</div>
+
+<!-- Hidden div for defining multi-line strings -->
+<div style="display:none">
+
+<div id="string_welcome">{ Welcome to Tonality Composer!
+
+Press Play ▶️ to hear a C major scale: }
+
+C D E F G A B C
+
+{ Tonality Composer is both an interactive introduction into music theory, and an open canvas for creating your own microtonal music. Go through the tutorial step-by-step, or simply select one of the pre-written pieces above and watch the lights dance. }</div>
+<div id="string_air">T(8=60) K(F#+A+C#+)
+[ F'1~ | F8 B16 G F32~ E D16 Co D C+4 B+16~ A8. | A'2~ A16 F C@+,~ B E~ D# A~ G | G2~ G16 E+ B~ A D~ C G~ F | F4. G#+16~ A D,8 D32 E F8 E16 E~ D
+/ D'1~ | D4 B A2~ | A8 C@16 B C8 A'16 C, B8 R4. | B8 E16 D E F G E A,8 R4. | A2~ A8 G#16 A B8 G
+/ A2 B | B,4 E E+2~ | E+8 Eb E~ E+ F R4. | E8 B4 E8 E+ R4. | D4. E+8 F D B Eo~
+/ D,8 D' C C, B B' A A, | G G' G# G, A A' G@+ G, | F F' E+ E, D# D' B B' | E, E' D D, C C' A A' | D, D' C C, B B' G# E ]
+
+| O |
+
+[ C'16 B+ B32 C D8. C16 B A2
+/ A'8 A4 G#+8 E+2
+/ E+8 F B+ E C2
+/ A8 D, E+ E, A16~ B+~ C~ D~ E+~ G+~ F~ E~ ]
+
+| O |
+
+[ F'1~ | F8 B16 G F32~ E D16 Co D C+4 B+16~ A8. | A'2~ A16 F C@+,~ B E~ D# A~ G | G2~ G16 E+ B~ A D~ C G~ F | F4. G#+16~ A D,8 D32 E F8 E16 E~ D
+/ D'1~ | D4 B A2~ | A8 C@16 B C8 A'16 C, B8 R4. | B8 E16 D E F G E A,8 R4. | A2~ A8 G#16 A B8 G
+/ A2 B | B,4 E E+2~ | E+8 Eb E~ E+ F R4. | E8 B4 E8 E+ R4. | D4. E+8 F D B Eo~
+/ D,8 D' C C, B B' A A, | G G' G# G, A A' G@+ G, | F F' E+ E, D# D' B B' | E, E' D D, C C' A A' | D, D' C C, B B' G# E ]
+
+| O |
+
+[ C'16 B B32 C D8. C16 B A2
+/ A'8 A4 G#+8 E+2
+/ E+8 F B, E C2
+/ A8 D, E+ E, A2 ]</div>
+
+<div id="string_canon">T(4=40) K(F#+A+C#+E+)
+[
+D4 A B F G D G A | D A B F G D G A | D A B F G D G A
+/
+R1 R1 | F'4 E D C B A B C | D C B A G F G E
+/
+R1 R1 | R1 R1 | F'4 E D C B A B C | D C B A G F G E
+]</div>
+
+<div id="string_part1">{ Part 1: Under construction! }</div>
+
+<div id="string_part2">{ Part 2: Under construction! }</div>
+
+<div id="string_part3">{ Part 3: Under construction! }</div>
+
+</div>
+
+<script>
+// Constants:
+var MIDDLE_C = 264;
+var NOTE_BREAK = 0.9;
+var VOLUME = 0.02;
+var NOTE_REGEX = "([ABCDEFGRO])([#b@+o-]*)([',]*)([0123456789]*)([.]*)(~?)";
+var WHITE_NOTES = {C:0, D:2, E:4, F:5, G:7, A:9, B:11};
+var JUST_INTONATION = {C:1, D:9/8, E:5/4, F:4/3, G:3/2, A:5/3, B:15/8};
+var CHROMATIC_SEMITONE = 25/24;
+var SYNTONIC_COMMA = 81/80;
+
+// -----
+// Highlighting:
+
+function parseTextByTokens(text) {
+	var output = "";
+	var tokenIndex = 0;
+	var spaceLast = !!text;
+	for (var i=0; i<text.length; i++) {
+		var c = text[i];
+		if (" \n\t".indexOf(c) !== -1) {
+			if (spaceLast) {
+				output += c;
+			} else {
+				output += "</span>" + c;
+			}
+			spaceLast = true;	
+		} else {
+			if (spaceLast) {
+				output += "<span id=\"ht_" + tokenIndex + "\">" + c;
+				tokenIndex++;
+				spaceLast = false;
+			} else {
+				output += c;
+			}
+		}
+	}
+	if (tokenIndex && !spaceLast) {
+		output += "</span>";
+	}
+	return output;
+}
+function refreshHighlights() {
+	var highlightsDiv = document.getElementById("highlights");
+	highlightsDiv.innerHTML = parseTextByTokens(document.getElementById("song").value);
+}
+function scrollEditor(element, event) {
+	var highlightsDiv = document.getElementById("highlights");
+	var position = event.target.scrollTop;
+	highlightsDiv.scrollTo(0, position);
+	if (position >= highlightsDiv.scrollTop/*highlightsDiv.scrollTopMax*/) {
+		element.scrollTo(0, highlightsDiv.scrollTop);
+		event.preventDefault();
+	}
+}
+function setHighlighting(tokenIndex, status) {
+	var tokenSpan = document.getElementById("ht_" + tokenIndex);
+	if (tokenSpan) {
+		if (status === 2) {
+			tokenSpan.classList.add("erroneous");
+		} else if (status === 1) {
+			tokenSpan.classList.add("active");
+		} else if (status === 0) {
+			tokenSpan.classList.remove("active");
+		}
+	}
+}
+function displayErrors(compilationErrors) {
+	for (var i=0; i<compilationErrors.length; i++) {
+		var t = compilationErrors[i];
+		setHighlighting(t, 2);
+	}
+}
+
+// -----
+// Grid display:
+
+var cells = document.getElementsByClassName("cell");
+for (var i=0; i<cells.length; i++) {
+	var cell = cells[i];
+	var text = cell.innerText.toLowerCase();
+	var id = "cell_" + text[0] + (
+			text.includes("𝄪") ? "ss" :
+			text.includes("♯") ? "s" :
+			text.includes("♭") ? "f" :
+			text.includes("𝄫") ? "ff" : ""
+		) + (
+			text.includes("‡") ? "pp" :
+			text.includes("⁺") ? "p" :
+			text.includes("⁻") ? "m" :
+			text.includes("⸗") ? "mm" : ""
+		);
+	cell.id = id;
+}
+function activateCell(noteName) {
+	var cell = document.getElementById("cell_" + noteName);
+	if (cell) {
+		cell.dataset.activation = 1+parseInt(cell.dataset.activation || "0");
+		cell.classList.add("active");
+	}
+}
+function deactivateCell(noteName) {
+	var cell = document.getElementById("cell_" + noteName);
+	if (cell) {
+		cell.dataset.activation = parseInt(cell.dataset.activation) - 1;
+		if (!parseInt(cell.dataset.activation)) {
+			cell.classList.remove("active");
+		}
+	}
+}
+
+// -----
+// Controls:
+
+var waveform;
+var waveformContainer = document.getElementById("waveforms");
+function setWaveform(element) {
+	var id = element.id;
+	waveform = id.substring(2);
+	var spans = waveformContainer.getElementsByTagName("span");
+	for (var i=0; i<spans.length; i++) {
+		var span = spans[i];
+		if (span === element) {
+			span.classList.add("selected");
+		} else {
+			span.classList.remove("selected");
+		}
+	}
+}
+setWaveform(document.getElementById("w_triangle"));
+
+function setEditor(element) {
+	var value = element.value;
+	if (value) {
+		var string = document.getElementById("string_" + value).innerText;
+		document.getElementById("song").value = string;
+		refreshHighlights();
+		if (playing) {
+			stop();
+		}
+	}
+}
+setEditor(document.getElementById("selector"))
+
+
+// -----
+// Sounds:
+// http://stackoverflow.com/a/29641185
+var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+function tone(frequency, volume, type, callback) {
+    var gainNode = audioCtx.createGain();
+	var oscillator = audioCtx.createOscillator();
+	oscillator.connect(gainNode);
+    oscillator.frequency.value = frequency;
+    oscillator.type = type;
+    callback && (oscillator.onended = callback);
+	gainNode.connect(audioCtx.destination);
+	var realVolume = volume * {sine:4/3, triangle:1, square:3/4, sawtooth:3/4}[type];
+	gainNode.gain.value = realVolume;
+	oscillator.start();
+	return oscillator;
+}
+
+// -----
+// Playback:
+
+function findBounds(anchor, floating) {
+	var lower = -Infinity;
+	var upper = Infinity;
+	for (var v=anchor-12; v<=anchor+12; v++) {
+		if ((v - floating) % 12 === 0) {
+			if (v <= anchor) {
+				lower = v;
+			}
+			if (v >= anchor) {
+				upper = v;
+				break;
+			}
+		}
+	}
+	return [lower, upper];
+}
+
+var timeouts = [];
+var tones = {};
+// `compiled` is an array of notes given as 3-element arrays [startTime, endTime, frequency] (times in milliseconds)
+function play(compiled) {
+	var lastEndTime = 0;
+	for (var i=0; i<compiled.length; i++) {
+		var note = compiled[i];
+		var startTime = note[0];
+		var endTime = note[1];
+		lastEndTime = Math.max(endTime, lastEndTime);
+		var frequency = note[2];
+		var noteName = note[3];
+		var tokenIndex = note[4];
+		var duration = endTime - startTime;
+		timeouts.push(setTimeout(function(){
+			var f = frequency;
+			var d = duration;
+			var n = noteName;
+			var t = tokenIndex;
+			return function(){
+				activateCell(n);
+				setHighlighting(t, 1);
+				var osc = tone(f, VOLUME, waveform);
+				tones[t] = osc;
+				timeouts.push(setTimeout(function(){
+					deactivateCell(n);
+					setHighlighting(t, 0);
+					osc.stop();
+					delete tones[t];
+				}, d));
+			}
+		}(), startTime));
+	}
+	timeouts.push(setTimeout(function(){
+		document.getElementById("playButton").innerText = "▶️";
+		playing = false;
+	}, lastEndTime));
+}
+function copy(array) {
+	var result = [];
+	for (var i=0; i<array.length; i++) {
+		result.push(array[i]);
+	}
+	return result;
+}
+function stop() {
+	playing = false;
+	document.getElementById("playButton").innerText = "▶️";
+	for (var i=0; i<timeouts.length; i++) {
+		clearTimeout(timeouts[i]);
+	}
+	for (var t in tones) {
+		tones[t].stop();
+	}
+	timeouts = [];
+	tones = {};
+	var actives = copy(document.getElementsByClassName("active"));
+	for (var j=0; j<actives.length; j++) {
+		if (actives[j]) {
+			actives[j].classList.remove("active");
+			if (actives[j].dataset.activation) {
+				actives[j].dataset.activation = 0;
+			}
+		}
+	}
+}
+function parseOctaveMarkers(octaveMarkers) {
+	var octaveUps = octaveMarkers.match(/'/g);
+	octaveUps = octaveUps ? octaveUps.length : 0;
+	var octaveDowns = octaveMarkers.match(/,/g);
+	octaveDowns = octaveDowns ? octaveDowns.length : 0;
+	var writtenOctaveAdjustment = octaveUps - octaveDowns;
+	return writtenOctaveAdjustment;
+}
+function compileNotation(notation) {
+	var tokens = notation.split(/\s+/);
+	if (tokens && tokens[0] === "") {
+		tokens = tokens.slice(1);
+	}
+	var compiled = [];
+	var invalidTokens = [];
+
+	var wholeNotesPerMinute = 20; // default if no T() is specified
+	var cursor = 0;
+	var lastNoteLength = 4;
+	var lastNoteValue = 0; // 0 = middle c, 1 = c#, etc
+	var keySignature = {};
+	var measureSignature = {};
+
+	var polyphonyStack = []; // contains arrays with the preciding 6 variables in that order
+	var commentingLevel = 0;
+
+	for (var i=0; i<tokens.length; i++) {
+		var token = tokens[i];
+		if (!token) {
+			// Do nothing
+		} else if (token === "}") {
+			commentingLevel--;
+		} else if (token === "{") {
+			commentingLevel++;
+		} else if (commentingLevel) {
+			// Do nothing
+		} else if (token[0] === "T") {
+			var inner = token.slice(2, -1);
+			var parts = inner.split("=");
+			if (!inner || parts.length !== 2) {
+				invalidTokens.push(i);
+				continue;
+			}
+			var first = parseInt(parts[0]);
+			var second = parseInt(parts[1]);
+			if (isNaN(first) || isNaN(second)) {
+				invalidTokens.push(i);
+				continue;
+			}
+			wholeNotesPerMinute = second/first;
+		} else if (token[0] === "K") {
+			var inner = token.slice(2, -1);
+			var noteInKS;
+			var ksCoarse = 0;
+			var ksFine = 0;
+			keySignature = {};
+			for (var k=0; k<inner.length; k++) {
+				var c = inner[k];
+				if ("ABCDEFG".includes(c)) {
+					keySignature[noteInKS] = [ksCoarse, ksFine];
+					ksCoarse = 0;
+					ksFine = 0;
+					noteInKS = c;
+				} else {
+					if (c === "#") {
+						ksCoarse++;
+					} else if (c === "b") {
+						ksCoarse--;
+					} else if (c === "+") {
+						ksFine++;
+					} else if (c === "-") {
+						ksFine--;
+					}
+				}
+			}
+			keySignature[noteInKS] = [ksCoarse, ksFine];
+		} else if (token === "|") {
+			measureSignature = {};
+		} else if (token === "[") {
+			polyphonyStack.push([wholeNotesPerMinute, cursor, lastNoteLength, lastNoteValue, JSON.stringify(measureSignature)]);
+		} else if (token === "/") {
+			var topOfStack = polyphonyStack[polyphonyStack.length-1];
+			wholeNotesPerMinute = topOfStack[0];
+			cursor = topOfStack[1];
+			lastNoteLength = topOfStack[2];
+			lastNoteValue = topOfStack[3];
+			measureSignature = JSON.parse(topOfStack[4]);
+		} else if (token === "]") {
+			polyphonyStack.pop();
+			// All values are now as of the last line of the polyphony, even if the lines were not the same length, which means that the next note may start while some of the lines are still playing.
+		} else {
+			var parsedNote = token.match(NOTE_REGEX);
+			if (!parsedNote || parsedNote.length !== 7 || parsedNote.slice(1).join("") !== token) {
+				invalidTokens.push(i);
+				continue;
+			}
+			var noteLetter = parsedNote[1];
+			var accidentals = parsedNote[2] || "";
+			var octaveMarkers = parsedNote[3] || "";
+			var noteLength = parsedNote[4] || "";
+			var dots = parsedNote[5] || "";
+			var slur = parsedNote[6] || "";
+
+			if (noteLength && noteLength[0] === "0") {
+				invalidTokens.push(i);
+				continue;
+			}
+			if (noteLength) {
+				lastNoteLength = parseInt(noteLength);
+			}
+
+			var noteLengthMinutes = 1/(wholeNotesPerMinute*lastNoteLength);
+			var noteLengthMs = noteLengthMinutes * 60000;
+			noteLengthMs *= Math.pow(1.5, dots.length);
+
+			var startTime = cursor;
+			var endTime = cursor + (noteLengthMs * (slur ? 1 : NOTE_BREAK));
+
+			if (noteLetter !== "O") {
+				cursor += noteLengthMs;
+			}
+
+			if (noteLetter === "O") {
+				var writtenOctaveAdjustment = parseOctaveMarkers(octaveMarkers);
+				lastNoteValue = 12*writtenOctaveAdjustment;
+
+			} else if (noteLetter !== "R") {
+				var ksAccidentals = keySignature[noteLetter];
+				var coarseAccidentals = 0;
+				if (accidentals.includes("#") || accidentals.includes("b") || accidentals.includes("@")) {
+					var sharps = accidentals.match(/#/g);
+					sharps = sharps ? sharps.length : 0;
+					var flats = accidentals.match(/b/g);
+					flats = flats ? flats.length : 0;
+					coarseAccidentals = sharps - flats;
+					if (!measureSignature[noteLetter]) {
+						measureSignature[noteLetter] = [coarseAccidentals, null];
+					} else {
+						measureSignature[noteLetter][0] = coarseAccidentals;
+					}
+				} else if (measureSignature[noteLetter] && measureSignature[noteLetter][0] !== null) {
+					coarseAccidentals = measureSignature[noteLetter][0];
+				} else if (ksAccidentals) {
+					coarseAccidentals = ksAccidentals[0];
+				}
+
+				var fineAccidentals = 0;
+				if (accidentals.includes("+") || accidentals.includes("-") || accidentals.includes("o")) {
+					var pluses = accidentals.match(/\+/g);
+					pluses = pluses ? pluses.length : 0;
+					var minuses = accidentals.match(/-/g);
+					minuses = minuses ? minuses.length : 0;
+					fineAccidentals = pluses - minuses;
+					if (!measureSignature[noteLetter]) {
+						measureSignature[noteLetter] = [null, fineAccidentals];
+					} else {
+						measureSignature[noteLetter][1] = fineAccidentals;
+					}
+				} else if (measureSignature[noteLetter] && measureSignature[noteLetter][1] !== null) {
+					fineAccidentals = measureSignature[noteLetter][1];
+				} else if (ksAccidentals) {
+					fineAccidentals = ksAccidentals[1];
+				}
+
+				var naiveValue = WHITE_NOTES[noteLetter] + coarseAccidentals;
+				var bounds = findBounds(lastNoteValue, naiveValue);
+				var upperBound = bounds[1];
+				var lowerBound = bounds[0];
+				var lowerDiff = lastNoteValue - lowerBound;
+				var upperDiff = upperBound - lastNoteValue;
+				var adjustedValue = upperDiff<=lowerDiff ? upperBound : lowerBound;
+
+				var writtenOctaveAdjustment = parseOctaveMarkers(octaveMarkers);
+				adjustedValue += (12 * writtenOctaveAdjustment);
+				lastNoteValue = adjustedValue;
+				var octaveAdjustment = (adjustedValue - naiveValue)/12;
+
+				var pitch = MIDDLE_C *
+					Math.pow(2, octaveAdjustment) *
+					JUST_INTONATION[noteLetter] *
+					Math.pow(CHROMATIC_SEMITONE, coarseAccidentals) *
+					Math.pow(SYNTONIC_COMMA, fineAccidentals);
+				var noteName = noteLetter.toLowerCase() + 
+					(coarseAccidentals ? new Array(1+Math.abs(coarseAccidentals)).join(coarseAccidentals>0 ? "s" : "f") : "") +
+					(fineAccidentals ? new Array(1+Math.abs(fineAccidentals)).join(fineAccidentals>0 ? "p" : "m") : "");
+				compiled.push([startTime, endTime, pitch, noteName, i]);
+			}
+		}
+	}
+	return [compiled, invalidTokens];
+}
+
+var playing = false;
+function playSong() {
+	if (!playing) {
+		document.getElementById("playButton").innerText = "⏹";
+		var songNotation = document.getElementById("song").value;
+		var compilation = compileNotation(songNotation);
+		var songCompiled = compilation[0];
+		var compilationErrors = compilation[1];
+		displayErrors(compilationErrors);
+		play(songCompiled);
+		playing = true;
+	} else {
+		stop();
+	}
+
+}
+</script>
+
+</body>
+</html>
