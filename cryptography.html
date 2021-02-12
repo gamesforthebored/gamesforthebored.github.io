@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Cryptography tool</title>
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+<style>
+* {
+	font-family: Helvetica, Arial, sans-serif;
+}
+textarea {
+	font-family: monospace;
+	padding: 4px;
+}
+
+textarea {
+	width: 720px;
+	height: 80px;
+}
+
+textarea.large {
+	height: 240px;
+}
+
+button {
+	cursor: pointer;
+}
+
+.tab {
+	display: none;
+}
+
+#showGenerateKeys:checked ~ #generateKeysDiv,
+#showEncryptMessage:checked ~ #encryptMessageDiv,
+#showEncryptRaw:checked ~ #encryptRawDiv,
+#showDecryptMessage:checked ~ #decryptMessageDiv {
+	display: block;
+}
+
+label {
+	color: lightgray;
+	cursor: pointer;
+	display: inline-block;
+	border: 1px solid lightgray;
+	border-radius: 8px;
+	margin-right: 2px;
+	padding: 4px;
+}
+label:hover {
+	color: black;
+}
+
+#showGenerateKeys:checked ~ label[for="showGenerateKeys"],
+#showEncryptMessage:checked ~ label[for="showEncryptMessage"],
+#showEncryptRaw:checked ~ label[for="showEncryptRaw"],
+#showDecryptMessage:checked ~ label[for="showDecryptMessage"] {
+	color: black;
+	border-color: black;
+	cursor: default;
+}
+
+input[type="radio"] {
+	display: none;
+}
+</style>
+</head>
+<body>
+
+<noscript><h3>Javascript is required!</h3></noscript>
+<div id="browserUnsupported" style="display:none">It looks like your browser doesn't support cryptography. See <a href="https://caniuse.com/textencoder,mdn-api_subtlecrypto" target="_blank">here</a> for a list of browsers you can use.<br/><br/></div>
+
+<input type="radio" id="showGenerateKeys" name="tabControl" checked />
+<input type="radio" id="showEncryptMessage" name="tabControl" />
+<input type="radio" id="showEncryptRaw" name="tabControl" />
+<input type="radio" id="showDecryptMessage" name="tabControl" />
+
+<label for="showGenerateKeys">Generate keys</label>
+<label for="showEncryptMessage">Encrypt text</label>
+<label for="showEncryptRaw">Encrypt bytes</label>
+<label for="showDecryptMessage">Decode message</label>
+
+<hr/>
+
+<div id="generateKeysDiv" class="tab">
+<button onclick="generateKeys()">Generate!</button>
+<h2>Public key: share this!</h2>
+<textarea id="generatedPublic"></textarea>
+<h2>Private key: save this!</h2>
+<textarea id="generatedPrivate" class="large"></textarea>
+</div>
+
+<div id="encryptMessageDiv" class="tab">
+<h2>Original message</h2>
+<textarea id="messagePlaintextInput"></textarea>
+<br/>
+<button onclick="encryptMessage()">Encrypt message</button>
+<h2>Encryption key</h2>
+<textarea id="messageEncryptionKey"></textarea>
+<h2>Encrypted message</h2>
+<textarea id="messageCiphertext"></textarea>
+</div>
+
+
+<div id="encryptRawDiv" class="tab">
+<h2>Original bytes</h2>
+<textarea id="rawBytesPlaintextInput"></textarea>
+<h2>Public key for encryption</h2>
+<textarea id="encryptionPublicKey"></textarea>
+<br/>
+<button onclick="encryptRawBytes()">Encrypt raw bytes</button>
+<h2>Result</h2>
+<textarea id="rawBytesCiphertext"></textarea>
+</div>
+
+<div id="decryptMessageDiv" class="tab">
+<h2>Encoded message</h2>
+<textarea id="encryptedMessageInput"></textarea>
+<h2>Your private key</h2>
+<textarea id="decryptionPrivateKey" class="large"></textarea>
+<h2>Special decoding key</h2>
+<textarea id="specialDecodingKey"></textarea>
+<br/>
+<button onclick="decryptMessage()">Show me the message!</button>
+<h2>Result</h2>
+<textarea id="messagePlaintext"></textarea>
+</div>
+
+<script>
+// Browser check
+
+const dgebi = id => {
+	return document.getElementById(id);
+};
+
+if (!window.crypto ||
+	!window.crypto.subtle ||
+	!window.crypto.getRandomValues ||
+	!window.TextEncoder ||
+	!window.TextDecoder) {
+		dgebi("browserUnsupported").style = "";
+}
+
+
+// Buttons
+
+const generateKeys = async () => {
+	const key = await generateAsymmetricKey();
+	dgebi("generatedPublic").value = stripPublicKey(bufToCjk(key.publicKey));
+	dgebi("generatedPrivate").value = bufToCjk(key.privateKey);
+};
+
+const encryptMessage = async () => {
+	const key = await generateSymmetricKey();
+	console.log(1, cjkToBuf(dgebi("messageEncryptionKey").value.trim()));
+	dgebi("messageEncryptionKey").value = bufToCjk(key);
+	console.log(2, key);
+	const plaintextBuf = textToBuf(dgebi("messagePlaintextInput").value.trim());
+	const ciphertextBuf = await encryptSymmetric(key, plaintextBuf);
+	dgebi("messageCiphertext").value = bufToCjk(ciphertextBuf);
+};
+
+const encryptRawBytes = async () => {
+	const pubKeyBuf = cjkToBuf(unstripPublicKey(dgebi("encryptionPublicKey").value.trim()));
+	const key = await importPubKeyBuf(pubKeyBuf);
+	const plaintextBuf = cjkToBuf(dgebi("rawBytesPlaintextInput").value.trim());
+	const ciphertextBuf = await encryptAsymmetric(key, plaintextBuf);
+	dgebi("rawBytesCiphertext").value = bufToCjk(ciphertextBuf);
+};
+
+const decryptMessage = async () => {
+	const encryptedMessageBuf = cjkToBuf(dgebi("encryptedMessageInput").value.trim());
+	const decryptionPrivateKeyBuf = cjkToBuf(dgebi("decryptionPrivateKey").value.trim());
+	const specialDecodingKey = cjkToBuf(dgebi("specialDecodingKey").value.trim());
+
+	if (!encryptedMessageBuf.byteLength ||
+		!decryptionPrivateKeyBuf.byteLength ||
+		!specialDecodingKey.byteLength) {
+			alert("Make sure everything is filled in!");
+			return;
+	}
+	const privKey = await importPrivKeyBuf(decryptionPrivateKeyBuf);
+	const symmetricKey = await decryptAsymmetric(privKey, specialDecodingKey);
+	const decryptedMessageBuf = await decryptSymmetric(symmetricKey, encryptedMessageBuf);
+	const decryptedMessageText = bufToText(decryptedMessageBuf);
+	dgebi("messagePlaintext").value = decryptedMessageText;
+};
+
+
+// Text encoding
+
+const TEXT_ENCODER = new TextEncoder();
+const TEXT_DECODER = new TextDecoder();
+
+const textToBuf = text => {
+	return TEXT_ENCODER.encode(text)
+};
+
+const bufToText = buf => {
+	return TEXT_DECODER.decode(buf);
+};
+
+
+// Byte encoding
+
+const CJK_RANGES = [
+	[0x2E80, 0x2E99],
+	[0x2E9B, 0x2EF3],
+	[0x2F00, 0x2FD5],
+	//[0x3041, 0x3096],
+	//[0x30A1, 0x30FA],
+	[0x3105, 0x312C],
+	[0x4E00, 0x9FD0],
+	[0xA500, 0xA62B],
+	[0xAC00, 0xD7A3],
+	//[0xF900, 0xFA6D]
+];
+
+
+const groupBy = (array, size) => {
+	var groups = [];
+	for (var i=0; i<array.length; i+=size) {
+		for (var j=0; j<size; j++) {
+			var curr;
+			if (j===0) {
+				curr = [];
+				groups.push(curr);
+			} else {
+				curr = groups[groups.length-1];
+			}
+			curr.push(i+j >= array.length ? 0 : array[i+j]);
+		}
+	}
+	return groups;
+};
+
+// 0 <= num < 2^15
+const numToCjkChar = (num) => {
+	var codePoint;
+	var offset = 0;
+	for (var r=0; r<CJK_RANGES.length; r++) {
+		var range = CJK_RANGES[r];
+		codePoint = range[0] + num - offset;
+		if (codePoint <= range[1]) {
+			break;
+		} else {
+			offset += (range[1] - range[0] + 1);
+		}
+	}
+	if (codePoint > CJK_RANGES[CJK_RANGES.length-1][1]) {
+		alert(codePoint);
+	}
+	return String.fromCodePoint(codePoint);
+};
+
+// 0 <= num < 2^15
+const numToBitArray = num => {
+	output = [];
+	for (var i=14; i>=0; i--) {
+		output.push((num & (1 << i)) >> i);
+	}
+	return output;
+};
+
+// cjkChar in CJK_RANGES
+const cjkCharToNum = cjkChar => {
+	const codePoint = cjkChar.codePointAt(0);
+	var offset = 0;
+	for (var r=0; r<CJK_RANGES.length; r++) {
+		var range = CJK_RANGES[r];
+		if (codePoint >= range[0] && codePoint <= range[1]) {
+			return codePoint - range[0] + offset;
+		} else {
+			offset += (range[1] - range[0] + 1);
+		}
+	}
+	alert(codePoint);
+};
+
+// 0 <= bytes[i] < 256
+const byteToBitArray = bytes => {
+	const output = [];
+	bytes.forEach(byte => {
+		for (var i=7; i>=0; i--) {
+			output.push((byte & (1 << i)) >> i);
+		}
+	});
+	return output;
+};
+
+const bitArrayToNum = array => {
+	var num = 0;
+	array.forEach(bit => {
+		num = num * 2 + bit;
+	});
+	return num;
+};
+
+const bufToCjk = buf => {
+	const lengthIndicator = numToCjkChar(buf.byteLength);
+	const byteArray = new Uint8Array(buf);
+	const bitArray = byteToBitArray(byteArray);
+	const groupedBits = groupBy(bitArray, 15);
+	var output = "";
+	groupedBits.forEach(group => {
+		output += numToCjkChar(bitArrayToNum(group));
+	});
+	output += lengthIndicator;
+	return output;
+};
+
+const cjkToBuf = cjk => {
+	if (!cjk) {
+		return new Uint8Array(0).buffer;
+	}
+	const nums = [];
+	const byteLength = cjkCharToNum(cjk.charAt(cjk.length-1));
+	const remaining = cjk.substring(0, cjk.length-1);
+	for (var i=0; i<remaining.length; i++) {
+		var char = remaining.charAt(i);
+		nums.push(cjkCharToNum(char))
+	}
+	const trimmedBits = nums.map(numToBitArray).flat().slice(0, byteLength*8);
+	return new Uint8Array(groupBy(trimmedBits, 8).map(bitArrayToNum)).buffer;
+};
+
+
+// Symmetric cryptography
+
+const alertError = () => {
+	alert("Encryption/decryption error! Make sure your inputs are exactly correct.");
+};
+
+const DERIVATION_ALGORITHM = {name: "PBKDF2", hash: "SHA-256", iterations: 16};
+const SYMMETRIC_ALGORITHM = {name: "AES-CBC"};
+
+const generateSymmetricKey = () => {
+	return crypto.getRandomValues(new Uint8Array(20)).buffer;
+};
+
+const deriveSymmetricKey = async (symmetricKeyBuf, usage) => {
+	const randomPortion = symmetricKeyBuf.slice(0, 10);
+	const saltPortion = symmetricKeyBuf.slice(10, 20);
+	const pbkdf2Key = await crypto.subtle.importKey(
+		"raw", randomPortion, "PBKDF2", false, ["deriveKey"]
+	);
+	const derivedKey = await crypto.subtle.deriveKey(
+	    Object.assign({}, DERIVATION_ALGORITHM, {salt: saltPortion}),
+	    pbkdf2Key,
+	    Object.assign({}, SYMMETRIC_ALGORITHM, {length: 256}),
+	    true,
+	    [usage]
+	);
+	return derivedKey;
+};
+
+const concat = (buf1, buf2) => {
+	var arr1 = new Uint8Array(buf1);
+	var arr2 = new Uint8Array(buf2);
+	var arr3 = new Uint8Array(arr1.length + arr2.length);
+	arr3.set(arr1);
+	arr3.set(arr2, arr1.length);
+	return arr3.buffer;
+};
+
+const encryptSymmetric = async (symmetricKeyBuf /*20 bytes*/, plaintextBuf) => {
+	const iv = crypto.getRandomValues(new Uint8Array(16)).buffer;
+	const derivedKey = await deriveSymmetricKey(symmetricKeyBuf, "encrypt");
+	const rawCiphertextBuf = await crypto.subtle.encrypt(
+		Object.assign({}, SYMMETRIC_ALGORITHM, {iv: iv}),
+		derivedKey,
+		plaintextBuf
+	);
+	return concat(rawCiphertextBuf, iv);
+};
+
+const decryptSymmetric = async (symmetricKeyBuf /*20 bytes*/, ciphertextBuf) => {
+	const concatBoundary = ciphertextBuf.byteLength - 16;
+	const iv = ciphertextBuf.slice(concatBoundary);
+	const rawCiphertextBuf = ciphertextBuf.slice(0, concatBoundary);
+	const derivedKey = await deriveSymmetricKey(symmetricKeyBuf, "decrypt");
+	const plaintextBuf = await crypto.subtle.decrypt(
+		Object.assign({}, SYMMETRIC_ALGORITHM, {iv: iv}),
+		derivedKey,
+		rawCiphertextBuf
+	).catch(alertError);
+	return plaintextBuf;
+};
+
+
+// Asymmetric cryptography
+
+const ASYMMETRIC_ALGORITHM = {
+	name: "RSA-OAEP",
+	modulusLength: 2048,
+	publicExponent: new Uint8Array([1, 0, 1]),
+	hash: "SHA-256"
+};
+
+const generateAsymmetricKey = async () => {
+	const keyPair = await crypto.subtle.generateKey(
+		ASYMMETRIC_ALGORITHM,
+		true,
+		["encrypt", "decrypt"]
+	);
+	const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+	const privateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+	return {privateKey, publicKey};
+};
+
+const importPubKeyBuf = async pubKeyBuf => {
+	return await crypto.subtle.importKey(
+		"spki",
+		pubKeyBuf,
+		ASYMMETRIC_ALGORITHM,
+		false,
+		["encrypt"]
+	);
+};
+
+const importPrivKeyBuf = async privKeyBuf => {
+	return await crypto.subtle.importKey(
+		"pkcs8",
+		privKeyBuf,
+		ASYMMETRIC_ALGORITHM,
+		false,
+		["decrypt"]
+	);
+};
+
+const encryptAsymmetric = async (pubKey, plaintextBuf) => {
+	return await crypto.subtle.encrypt(
+		ASYMMETRIC_ALGORITHM,
+		pubKey,
+		plaintextBuf
+	);
+};
+
+const decryptAsymmetric = async (privKey, ciphertextBuf) => {
+	return await crypto.subtle.decrypt(
+		ASYMMETRIC_ALGORITHM,
+		privKey,
+		ciphertextBuf
+	);//.catch(alertError);
+};
+
+const PUBLIC_PREFIX = "擐⻉銐鳯闣斱婽妐⼍跏⻱沟쾓躗亣休⼍";
+const PUBLIC_SUFFIX = "粟⺈⾳";
+
+const stripPublicKey = publicKeyCjk => {
+	var stripped = publicKeyCjk;
+	if (publicKeyCjk.startsWith(PUBLIC_PREFIX)) {
+		stripped = stripped.substring(PUBLIC_PREFIX.length);
+	} else {
+		alert("Key generation error, try again!");
+		return;
+	}
+	if (publicKeyCjk.endsWith(PUBLIC_SUFFIX)) {
+		stripped = stripped.substring(0, stripped.length-PUBLIC_SUFFIX.length);
+	} else {
+		alert("Key generation error, try again!");
+		return;
+	}
+	return stripped;
+};
+
+const unstripPublicKey = strippedPublicKeyCjk => {
+	return PUBLIC_PREFIX + strippedPublicKeyCjk + PUBLIC_SUFFIX;
+};
+
+
+// Testing
+
+const runTest = async () => {
+	const asymmetricKey = await generateAsymmetricKey();
+	const publicKeyCjk = stripPublicKey(bufToCjk(asymmetricKey.publicKey));
+	const privateKeyCjk = bufToCjk(asymmetricKey.privateKey);
+	const symmetricKey = await generateSymmetricKey();
+	const originalMessage = "Hello world";
+	const encryptedMessage = bufToCjk(await encryptSymmetric(symmetricKey, textToBuf(originalMessage)));
+	const symmetricKeyCjk = bufToCjk(symmetricKey);
+
+	const symmetricKeyExtracted = cjkToBuf(symmetricKeyCjk);
+	const publicKeyExtracted = cjkToBuf(unstripPublicKey(publicKeyCjk));
+	const publicKeyImported = await importPubKeyBuf(publicKeyExtracted);
+	const specialDecodingKeyCjk = bufToCjk(await encryptAsymmetric(publicKeyImported, symmetricKeyExtracted));
+
+	const encryptedMessageExtracted = cjkToBuf(encryptedMessage);
+	const privateKeyExtracted = cjkToBuf(privateKeyCjk);
+	const privateKeyImported = await importPrivKeyBuf(privateKeyExtracted);
+	const specialDecodingKeyExtracted = cjkToBuf(specialDecodingKeyCjk);
+	const decodedSymmetricKey = await decryptAsymmetric(privateKeyImported, specialDecodingKeyExtracted);
+	const decryptedMessage = await decryptSymmetric(decodedSymmetricKey, encryptedMessageExtracted);
+	const decryptedMessageText = bufToText(decryptedMessage);
+
+	if (decryptedMessageText !== originalMessage) {
+		throw new Exception();
+	}
+}
+
+try {
+	runTest();
+} catch (e) {
+	console.log(e);
+	dgebi("browserUnsupported").style = "";
+}
+
+</script>
+</body>
+</html>
