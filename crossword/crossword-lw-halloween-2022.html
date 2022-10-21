@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.cell, .blank {
+	border: 1px solid black;
+	display: inline-block;
+	width: 26px;
+	height: 26px;
+	padding: 2px;
+	font-family: Arial;
+	font-size: 12px;
+	position: relative;
+	cursor: default;
+}
+.cell input {
+	border: none;
+	width: 26px;
+	height: 28px;
+	background-color: transparent;
+	position: absolute;
+	left: 0;
+	top: 0;
+	font-family: "Courier New", "Courier", monospace;
+	text-transform: uppercase;
+	font-size: 26px;
+	font-weight: bold;
+	text-align: center;
+	outline: none;
+}
+.cell input, .highlight {
+	color: red;
+}
+.blank {
+	background-color: black;
+}
+.number {
+	z-index: 1;
+	position: relative;
+	pointer-events: none;
+}
+h1, h2, h3, p, #clueList, #noscript {
+	font-family: Georgia;
+}
+button {
+	margin-left: 15px;
+}
+
+#main {
+	border: 1px solid black;
+	display: inline-block;
+	float: left;
+	white-space: nowrap;
+}
+#main.noNumbers .number, #main.noLetters input {
+	visibility: hidden;
+}
+#rightSide {
+	float: none;
+	overflow: hidden;
+}
+#clueBox, #clueList {
+	margin-left: 15px;
+	font-size: 18px;
+}
+#clueListOuter {
+	border: 1px solid black;
+	margin-left: 15px;
+	overflow-x: scroll;
+	height: 0;
+}
+#clueList {
+	margin-top: 15px;
+	column-width: 250px;
+}
+#clueList ol {
+	break-inside: avoid;
+}
+#clueList li {
+	margin-left: -10px;
+}
+#clueList li:empty {
+	visibility: hidden;
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+
+</style>
+</head>
+<body>
+
+<h1>Crossword: LessWrong Halloween 2022</h1>
+<h3 style="display:inline">By <a target="_blank" href="https://www.lesswrong.com/users/jchan">Jchan</a></h3>
+<button onclick="toggleNumbers()">Toggle numbers</button>
+<button onclick="toggleLetters()">Toggle letters</button>
+<button onclick="saveLoad()">Save/load</button>
+<div style="clear:both; margin-bottom: 30px"></div>
+
+<noscript><span id="noscript">JavaScript is required. (Or, try the <a href="">PDF version</a> of this puzzle.)</span></noscript>
+<div id="dynamic" style="display: none">
+	<div id="main"></div>
+	<div id="rightSide">
+		<div id="clueBoxOuter">
+			<div id="clueBox">
+				<p style="margin-top: 0"><b id="acrossClueLabel"></b>&nbsp;<span id="acrossClueText"></span></p>
+				<p><b id="downClueLabel"></b>&nbsp;<span id="downClueText"></span></p>
+			</div>
+		</div>
+		<div id="clueListOuter">
+			<div id="clueList">
+				<b>Across</b>
+				<ol id="acrossList"></ol>
+				<b>Down</b>
+				<ol id="downList"></ol>
+				</p>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<div style="clear:both"></div>
+
+
+<script>
+
+
+const SHAPE = `
+... ... ... .... ....
+... ... ... .... ....
+... ... ... .........
+....... ...   ... ...
+   ... ... ......... 
+..... ........ ...   
+....  ... .... ......
+..... ... ....   ....
+..... ...  ... ......
+........ .... ...... 
+   ...............   
+ ...... .... ........
+...... ...  ... .....
+....   .... ... .....
+...... .... ...  ....
+   ... ........ .....
+ ......... ... ...   
+... ...   ... .......
+......... ... ... ...
+.... .... ... ... ...
+.... .... ... ... ...
+`;
+
+const ACROSS_CLUES = `
+Dread
+Managerial deg.
+Arabic or Hebrew text dir.
+Such Venice, many election, wow
+Brainwashing experimenter
+Korean night terror
+"The Precipice" prophet
+Blue in Tokyo
+Mallard genus
+Spiced latte tea
+EY's ruin
+Theresa and Boris's successor
+Certain offspring
+Man who toyed with Chaos and hanged himself
+Childish Gambino's paranoid rant
+Civil rights leader (abbr.)
+Between GWB and DJT
+Video game hack
+Serine codon
+Current Miami Dolphins QB
+Like a monkey in Paris
+Loneliest Australian city
+Roko's bane
+Shipment measure (abbr.)
+Israeli airline
+Prophet of software servitude (abbr.)
+Television trophy
+Saphira's companion
+Sea eagles
+Earlier than in Shakespeare
+Pairwise
+Prohibition for Kindergarteners?
+Pope or princess hat
+None may do business save that has this (abbr.)
+Untruth
+What humanity's most brilliant minds are working on
+One of several ingredients in world-ending superweapons
+Utility maximization
+Titillate
+Theme of humanity's future
+Man who toyed with Infinity and died in an insane asylum
+Arachnid pest
+"Family Guy" writers, allegedly
+Japanese thunder god
+Archetypal conventional tech corp.
+Nightmare-haunting character
+Leader between Levi and Yitzhak
+Apple spokes-entity
+Zilch
+Ruth's successor on the council of nine
+Central Asian death god
+Name known from 5,200-year-old inscriptions
+Lawyer-devouring park dweller, for short
+Monstrous, sluggish bureaucrat
+Pinky and the Brain, for example
+Meth affix
+Insanity made manifest
+Scrapes off bits of skin for flavoring
+Build up again
+Colorful man-eating troll
+Weight of a large cow
+Sheev actor
+Afflict
+Ethereum particle
+1995 Maxis plaything village
+Unending global tyranny
+Home security comp.
+White clerical robe
+Gothic horrorist of the Romantic period
+Was blind but now __
+Donned
+Grant's enemy
+Mountaineers' shop
+Called by another name
+Stitch line
+Hivemind alien mascot
+Internet encryption scheme
+Programming setup
+Allow
+`;
+
+const DOWN_CLUES = `
+Distant
+Office drone's carrot
+Notorious children's author Blyton
+Infanticide beneficiary
+Take along
+Egyptian slasher
+Poll reporter
+Non-agentic system
+Pointy-eared swordsman of legend
+Zoomer dance move
+Beatle bride
+Korean barbecue dish
+Taste expert
+CompSci org.
+SeaWorld star
+Dugout boat
+Back
+Imhotep's boss
+Holy war that kills us all (best-case scenario)
+Land of Skyrim and Morrowind
+What our descendants may one day do to us
+Shia sectarian
+Catwoman's sister's screenname?
+Why even death is no escape
+Katniss's fellow tribute
+Manga alchemist family
+Thai xylophone
+Eugenicist
+SAD dispeller
+Vonnegut aphorism closer
+Fairy-tale starter
+Masked drama
+Petrus et Paulus
+IP cabal
+Drug quantity
+Target of 9th-century smashers
+Embarrassingly dystopian, like Warhammer but not cool
+Cereal piece
+Dissect
+Journalists' consensual gag
+Shrine amulet
+Paravel of the four thrones
+Breezy
+Island of wretched refuse
+Imperial decree
+Rice wines
+Painful condition of the terminally-online (abbr.)
+Chip duopolist
+Syriac Catholics
+Weapon of choice for fictional serial killers
+Greatest Laker
+Yelp leavings
+Man who toyed with Truth and starved himself to death
+Philosophical undead
+Up the ante
+Gram of esoteric psychology
+Singer John
+As our future lightcone with paperclips
+Beheading org.
+Goofy cartoonist
+Indian drape
+October birthstone
+Aware of vast misery
+Unadulterated at a bar
+Precious crystal
+Start of San Francisco's motto
+Prefix to make old things sound cool
+`;
+
+
+let lines = SHAPE.split("\n");
+let matrix = [];
+for (let i=0; i<lines.length; i++) {
+	let line = lines[i];
+	if (!line) {
+		continue;
+	}
+	matrix.push(line.split(""));
+}
+const size = matrix.length;
+function get(r, c) {
+	if (r<0 || r>=size || c<0 || c>=size) {
+		return " ";
+	} else {
+		return matrix[r][c];
+	}
+}
+let acrossClues = ACROSS_CLUES.split("\n").filter(x=>x);
+let downClues = DOWN_CLUES.split("\n").filter(x=>x);
+let acrossCluesMap = {}, downCluesMap = {};
+let acrossIncrementer = 0, downIncrementer = 0;
+
+let html = "";
+let number = 1;
+let indices = new Array(size);
+for (let i=0; i<size; i++) {
+	indices[i] = new Array(size);
+	for (let j=0; j<size; j++) {
+		indices[i][j] = {};
+	}
+}
+for (let r=0; r<size; r++) {
+	html += '<div class="row">';
+	for (let c=0; c<size; c++) {
+		let s = get(r, c);
+		if (s === " ") {
+			html += '<div class="blank">&nbsp;</div>';
+		} else {
+			let newNumber = false;
+			let acrossIndex, downIndex, acrossNumber, downNumber;
+			let here = indices[r][c];
+			if (get(r, c-1) === " ") {
+				newNumber = true;
+				here.acrossIndex = 1;
+				here.acrossNumber = number;
+				acrossCluesMap[number] = acrossClues[acrossIncrementer];
+				acrossIncrementer++;
+			} else {
+				let leftNeighbor = indices[r][c-1];
+				here.acrossIndex = leftNeighbor.acrossIndex + 1;
+				here.acrossNumber = leftNeighbor.acrossNumber;
+			}
+			if (get(r-1, c) === " ") {
+				newNumber = true;
+				here.downIndex = 1;
+				here.downNumber = number;
+				downCluesMap[number] = downClues[downIncrementer];
+				downIncrementer++;
+			} else {
+				let topNeighbor = indices[r-1][c];
+				here.downIndex = topNeighbor.downIndex + 1;
+				here.downNumber = topNeighbor.downNumber;
+			}
+			let id = "i" + r + "_" + c;
+			let inputHtml = '<input id="'
+				+ id
+				+ '" type="text" maxlength="1" onchange="unclean=true" onblur="blurInput(this)" onfocus="focusInput(this)" onkeydown="keyPress(event.key, this)" data-ai="'
+				+ here.acrossIndex
+				+ '" data-an="'
+				+ here.acrossNumber
+				+ '" data-di="'
+				+ here.downIndex
+				+ '" data-dn="'
+				+ here.downNumber+'"/>';
+
+			if (newNumber) {
+				html += ('<div class="cell"><span class="number">' +
+					number + '</span>' + inputHtml + '</div>');
+				number++;
+			} else {
+				html += '<div class="cell">&nbsp;' + inputHtml + '</div>';
+			}
+		}
+	}
+	html += '</div>';
+}
+document.getElementById("main").innerHTML = html;
+
+document.getElementById("dynamic").style.display = null;
+
+document.getElementById("clueListOuter").style.height =
+	(document.getElementById("main").clientHeight - document.getElementById("clueBoxOuter").clientHeight - 18) + "px";
+	
+
+function printClues(cluesMap, olElement, idPrefix) {
+	let keys = Object.keys(cluesMap);
+	let inc = 1;
+	let html = "";
+	for (let i=0; i<keys.length; i++) {
+		let key = keys[i];
+		while (inc < +key) {
+			html += "<li></li>";
+			inc++;
+		}
+		html += ('<li id="' + idPrefix + key + '">'+cluesMap[key]+'</li>');
+		inc++;
+	}
+	olElement.innerHTML = html;
+}
+printClues(acrossCluesMap, document.getElementById("acrossList"), "a");
+printClues(downCluesMap, document.getElementById("downList"), "d");
+
+function toggleLetters() {
+	document.getElementById("main").classList.toggle("noLetters");
+}
+
+function toggleNumbers() {
+	document.getElementById("main").classList.toggle("noNumbers");
+}
+
+let unclean = false;
+function getSolution() {
+	let output = "";
+	for (let r=0; r<size; r++) {
+		for (let c=0; c<size; c++) {
+			let input = document.getElementById("i" + r + "_" + c);
+			if (input) {
+				if (input.value.trim()) {
+					output += input.value.trim().toUpperCase();
+				} else {
+					output += ".";
+				}
+			} else {
+				output += " ";
+			}
+		}
+		output += "/";
+	}
+	return output.substring(0, output.length-1);
+}
+
+function enterSolution(solutionText) {
+	let solutionStripped = solutionText.replaceAll("/", "");
+	if (solutionStripped.length !== size * size) {
+		alert("Invalid solution!");
+		return;
+	}
+	for (let i=0; i<solutionStripped.length; i++) {
+		let s = solutionStripped.charAt(i);
+		let r = Math.floor(i/size);
+		let c = i % size;
+		let input = document.getElementById("i" + r + "_" + c);
+		if (s.trim() && s !== ".") {
+			if (input) {
+				input.value = s;
+			}
+		} else {
+			if (input) {
+				input.value = "";
+			}
+		}
+	}
+}
+
+function saveLoad() {
+	let promptValue = prompt("To save your solution, copy the text below. To load, paste your solution below and click OK.", getSolution());
+	unclean = false;
+	if (promptValue) {
+		enterSolution(promptValue.trim());
+	}
+}
+
+window.onbeforeunload = function() {
+	return unclean ? true : void(0);
+}
+
+function blurInput(input) {
+	let acrossNumber = input.dataset.an;
+	let downNumber = input.dataset.dn;
+	document.getElementById("a" + acrossNumber).classList.remove("highlight");
+	document.getElementById("d" + downNumber).classList.remove("highlight");
+	document.getElementById("acrossClueLabel").innerText = "";
+	document.getElementById("downClueLabel").innerText = "";
+	document.getElementById("acrossClueText").innerText = "";
+	document.getElementById("downClueText").innerText = "";
+}
+
+function focusInput(input) {
+	let acrossNumber = input.dataset.an;
+	let downNumber = input.dataset.dn;
+	let acrossClue = acrossCluesMap[acrossNumber];
+	let downClue = downCluesMap[downNumber];
+	document.getElementById("a" + acrossNumber).classList.add("highlight");
+	document.getElementById("d" + downNumber).classList.add("highlight");
+	document.getElementById("acrossClueLabel").innerText = acrossNumber + " Across:";
+	document.getElementById("downClueLabel").innerText = downNumber + " Down:";
+	document.getElementById("acrossClueText").innerText = acrossClue;
+	document.getElementById("downClueText").innerText = downClue;
+	setTimeout(function(){input.select()}, 4);
+}
+
+function keyPress(key, input) {
+	let rightMovement = key==="ArrowRight" ? 1 : key==="ArrowLeft" ? -1 : 0;
+	let downMovement = key==="ArrowDown" ? 1 : key==="ArrowUp" ? -1 : 0;
+	if (rightMovement || downMovement) {
+		let coords = input.id.slice(1).split("_");
+		let newRow = +coords[0];
+		let newCol = +coords[1];
+		let newInput;
+		if (rightMovement) {
+			while (!newInput && newCol >=0 && newCol < size) {
+				newCol += rightMovement;
+				newInput = document.getElementById("i" + newRow + "_" + newCol);
+			}
+		}
+		if (downMovement) {
+			while (!newInput && newRow >=0 && newRow < size) {
+				newRow += downMovement;
+				newInput = document.getElementById("i" + newRow + "_" + newCol);
+			}
+		}
+		if (newInput) {
+			newInput.focus();
+		}
+	} else if (key === "Backspace") {
+		input.value = "";
+	}
+}
+
+</script>
+</body>
+</html>
