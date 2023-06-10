@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="jquery-1.12.0.min.js"></script>
+<meta charset="utf-8"/>
+<title>Justly intoned piano</title>
+<style>
+    .key {
+        text-align: center;
+        font-size: 30px;
+        float: left;
+        height: 40px;
+        position: relative;
+        font-family: "Courier New", monospace;
+        font-weight: bold;
+    }
+    .white {
+        border: 1px solid black;
+        border-left: none;
+        width: 80px;
+        z-index: 0;
+        padding-top:96px;
+    }
+    .white:first-child {
+        border-left: 1px solid black;
+    }
+    .white.semi {
+        width: 60px;
+    }
+    .black {
+        background-color: black;
+        color: white;
+        width: 40px;
+        margin-left: -20px;
+        margin-right: -20px;
+        padding: 0px;
+        padding-top: 40px;
+        z-index: 1;
+        border-bottom-right-radius: 10px;
+        border-bottom-left-radius: 10px;
+    }
+    .white.pressed, .pressed{
+        background-color: #bbb;
+    }
+    .black.pressed {
+        background-color: #888;
+    }
+
+
+    #keyboard, #visualization, #controls {
+        margin-left:auto; 
+        margin-right:auto; 
+        width: 833px
+    }
+
+
+    .w, .b {
+        float: left;
+        height: 40px;
+        position: relative;
+        border-top: 1px solid #bbb;
+        border-bottom: none;
+    }
+    .w {
+        border-right: 1px solid #bbb;
+        width: 80px;
+        z-index: 0;
+    }
+    .w:first-child {
+        border-left: 1px solid #bbb;
+    }
+    .w.semi {
+        width: 60px;
+    }
+    .b {
+        background-color: #bbb;
+        width: 40px;
+        margin-left: -20px;
+        margin-right: -20px;
+        z-index: 1;
+        background: linear-gradient(to bottom, #bbb, #ddd);
+    }
+
+    .w div, .b div {
+        width: 100%;
+        height: 40px;
+        text-align: center;
+        line-height: 40px;
+    }
+    .semi div {
+        margin-left: 10px;
+        margin-right: -10px;
+    }
+    .semi + .semi div, .semi:first-child div {
+        margin-left: -10px;
+        margin-right: 10px;
+    }
+    .w div:first-child, .b div:first-child {
+        border: none;
+    }
+    .sawtooth:after {
+        content: "☆";
+        font-size: 40px;
+        font-weight: bold;
+    }
+    .square:after {
+        content: "□";
+        font-size: 72px;
+    }
+    .sine:after {
+        content: "○";
+        font-size: 72px;
+    }
+    .triangle:after {
+        content: "△";
+        font-size: 40px;
+        font-weight: bold;
+    }
+
+    #spectrum div {
+        position:absolute;
+        height: 100%;
+        width: 0px;
+        border-left-width: 1px;
+        border-left-style: solid;
+        border-left-color: white;
+    }
+</style>
+</head>
+<body>
+
+<p style="float:left; font-family:Helvetica,sans-serif">
+<select id="tuning">
+    <option value="auto">Auto-adjusting</option>
+    <option value="et">Equal temperament</option>
+    <option value="pyth">Pythagorean</option>
+    <option value="just">5-limit just</option>
+</select>
+</p>
+
+<div id="container">
+<div id="spectrum" style="width: 831px; height: 60px; border: 1px solid black; background-color: black; position:relative; margin-left:auto; margin-right:auto">
+
+</div>
+
+<div style="clear:both"></div>
+
+<div id="keyboard">
+    <div class="white key semi" id="keyq">Q</div>
+    <div class="black key" id="key2">2</div>
+    <div class="white key" id="keyw">W</div>
+    <div class="black key" id="key3">3</div>
+    <div class="white key semi" id="keye">E</div>
+    <div class="white key semi" id="keyr">R</div>
+    <div class="black key" id="key5">5</div>
+    <div class="white key" id="keyt">T</div>
+    <div class="black key" id="key6">6</div>
+    <div class="white key" id="keyy">Y</div>
+    <div class="black key" id="key7">7</div>
+    <div class="white key semi" id="keyu">U</div>
+    <div class="white key semi" id="keyi">I</div>
+    <div class="black key" id="key9">9</div>
+    <div class="white key" id="keyo">O</div>
+    <div class="black key" id="key0">0</div>
+    <div class="white key semi" id="keyp">P</div>
+    <div class="white key semi" id="key_LSB">[</div>
+    <div class="black key" id="key_EQUALS">=</div>
+    <div class="white key" id="key_RSB">]</div>
+</div>
+
+<div style="clear:both"></div>
+
+<style>
+.selected {
+    background-color: #bbb;
+}
+
+
+#innercontrols {
+    width:120px; margin-left:auto; margin-right:auto; margin-top: 20px;
+    position:relative;
+}
+.symbol {
+    line-height: 40px; float:left;  width:40px; height:40px;
+}
+.leftside {
+    margin-right:20px;
+}
+.rightside {
+    margin-left:20px;
+}
+.letter {
+    border: 2px inset #bbb; width: 40px; height: 40px; border-radius:10px; font-size:30px; line-height:40px; font-family:'Courier New', monospace; font-weight:bold; text-align:center; 
+}
+
+</style>
+
+
+
+<div id="controls">
+<div id="innercontrols">
+    <div class="letter" style="position:absolute; right:520px; top:-80px" id="key_GRAVE">`</div>
+<div class="letter" style="position:absolute; left: 520px; top:-80px" id="key_BACKSLASH">\</div>
+    <div style="clear:both"></div>
+    <div class="leftside symbol sawtooth selected"></div>
+    <div class="rightside symbol square"></div>
+    <div style="clear:both"></div>
+    <div class="letter" style="margin-left: auto; margin-right: auto" id="keyn">N</div>
+    <div style="clear:both"></div>
+    <div class="leftside symbol sine"></div>
+    <div class="rightside symbol triangle"></div>
+</div>
+<div style="clear:both"></div>
+</div>
+
+</div> <!-- end container -->
+
+<script>
+
+var spectrum = document.getElementById("spectrum");
+function addLine(position, color, width) {
+    var line = document.createElement("div");
+    line.style["border-left-color"] = color;
+    if (width) {
+        line.style["border-left-width"] = width+"px";
+        position -= (width-1)/2;
+    }
+    line.style["left"] = (position+"px");
+    spectrum.appendChild(line);
+    return line;
+}
+
+function removeLine(line) {
+    spectrum.removeChild(line);
+}
+
+function positionForSemitones(st) {
+    return 82*st/2 + 14.5;
+}
+
+function addNoteLine(offset) {
+    var semitones = 12 * Math.log(offsetToFloat(offset)) / Math.log(2);
+    return addLine(positionForSemitones(semitones), "#ff0", 2);
+}
+
+for (var i=0; i<=19; i++) {
+    addLine(positionForSemitones(i), "#888");
+}
+
+
+
+</script>
+
+<script>
+
+// http://stackoverflow.com/a/29641185
+
+var audioCtx = new (window.AudioContext || window.webkitAudioContext || window.audioContext);
+
+function tone(frequency, volume, type, callback) {
+    
+    var gainNode = audioCtx.createGain();
+
+	var oscillator = audioCtx.createOscillator();
+	oscillator.connect(gainNode);
+    oscillator.frequency.value = frequency;
+    oscillator.type = type;
+    callback && (oscillator.onended = callback);
+    
+	gainNode.connect(audioCtx.destination);
+	gainNode.gain.value = volume;
+
+	oscillator.start(0);
+	return oscillator;
+}
+
+
+var WAVEFORM = "sawtooth";
+var VOLUME = 0.1;
+
+
+var keyMap = {
+    81: 0,
+    50: 1,
+    87: 2,
+    51: 3,
+    69: 4,
+    82: 5,
+    53: 6,
+    84: 7,
+    54: 8,
+    89: 9,
+    55: 10,
+    85: 11,
+    73: 12,
+    57: 13,
+    79: 14,
+    48: 15,
+    80: 16,
+    219: 17,
+    187: 18,
+    61: 18,
+    221: 19
+}
+
+
+var characterMap = {
+    81: "q",
+    50: "2",
+    87: "w",
+    51: "3",
+    69: "e",
+    82: "r",
+    53: "5",
+    84: "t",
+    54: "6",
+    89: "y",
+    55: "7",
+    85: "u",
+    73: "i",
+    57: "9",
+    79: "o",
+    48: "0",
+    80: "p",
+    219: "_LSB",
+    187: "_EQUALS",
+    61: "_EQUALS",
+    221: "_RSB"
+}
+
+
+function gcd(a,b) {
+    if (a < 0) a = -a;
+    if (b < 0) b = -b;
+    if (b > a) {var temp = a; a = b; b = temp;}
+    while (true) {
+        if (b == 0) return a;
+        a %= b;
+        if (a == 0) return b;
+        b %= a;
+    }
+}
+
+
+function Rat(num,den) {
+    this.num = num;
+    this.den = den;
+    return this;
+}
+Rat.prototype.plus = function(x) {
+    var g = gcd(this.den, x.den);
+    var newNum = this.num*x.den + x.num*this.den;
+    var newDen = this.den*x.den;
+    return new Rat(newNum/g, newDen/g);
+}
+Rat.prototype.times = function(x) {
+    var newNum = this.num * x.num;
+    var newDen = this.den * x.den;
+    var g = gcd(newNum, newDen);
+    return new Rat(newNum/g, newDen/g);
+}
+Rat.prototype.negate = function() {
+    return new Rat(-this.num, this.den);
+}
+Rat.prototype.inverse = function() {
+    if (this.den === 0) {
+        throw "Div0 error";
+    }
+    return new Rat(this.den, this.num);
+}
+Rat.prototype.toString = function() {
+    return this.num + "/" + this.den;
+}
+Rat.prototype.toFloat = function() {
+    return this.num/this.den;
+}
+Rat.prototype.copy = function() {
+    return new Rat(this.num, this.den);
+}
+
+var EQUAL_TEMPERAMENT = [];
+for (var i=0; i<12; i++) {
+    EQUAL_TEMPERAMENT[i] = Math.pow(2, i/12);
+}
+
+var PYTHAGOREAN_TUNING = [
+    new Rat(1,1), new Rat(256,243), new Rat(9,8), new Rat(32,27), new Rat(81,64), new Rat(4,3),
+    new Rat(729,512), new Rat(3,2), new Rat(128,81), new Rat(27,16), new Rat(16,9), new Rat(243,128)
+];
+
+var JUST_INTONATION = [
+    new Rat(1,1), new Rat(16,15), new Rat(9,8), new Rat(6,5), new Rat(5,4), new Rat(4,3),
+    new Rat(45,32), new Rat(3,2), new Rat(8,5), new Rat(5,3), new Rat(9,5), new Rat(15,8)
+];
+var ONE = new Rat(1,1);
+var TWO = new Rat(2,1);
+var HALF = new Rat(1,2);
+
+
+function powerOfTwo(n) {
+    if (n === 0) {
+        return ONE;
+    } else if (n>0) {
+        return new Rat(Math.pow(2,n), 1);
+    } else {
+        return new Rat(1, Math.pow(2,-n));
+    }
+}
+
+
+function removeAllTwos(n) { // n is an integer > 0
+    while (n%2 === 0) {
+        n = n/2;
+    }
+    return n;
+}
+
+function measureHarmony(rats) { // Assume nonempty, and all are in [1,2)
+    var p = rats[0].den;
+    for (var i=1; i<rats.length; i++) {
+        p *= rats[i].den;
+    }
+    var nums = [];
+    for (var i=0; i<rats.length; i++) {
+        nums[i] = rats[i].num * p / rats[i].den;
+    }
+    var g = nums[0];
+    for (var i=1; i<rats.length; i++) {
+        g = gcd(g, nums[i]);
+    }
+    for (var i=0; i<rats.length; i++) {
+        nums[i] /= g;
+    }
+    return Math.max.apply(this,
+        nums.map( removeAllTwos )
+    );
+
+}
+
+
+var notesPlayingNow = {};
+var SYNTONIC = new Rat(81,80);
+var DIESIS = new Rat(128, 125);
+var PYTHAGOREAN = new Rat(32805, 32768);
+var BASIC_TWEAKS = [SYNTONIC, DIESIS, PYTHAGOREAN];
+var TWEAKS = [ONE];
+for (var i=0; i<BASIC_TWEAKS.length; i++) {
+    var bt = BASIC_TWEAKS[i];
+    var tempTweaks = [];
+    for (var j=0; j<TWEAKS.length; j++) {
+        var t = TWEAKS[j];
+        tempTweaks.push(t);
+        tempTweaks.push(t.times(bt));
+        tempTweaks.push(t.times(bt.inverse()));
+    }
+    TWEAKS = tempTweaks;
+}
+
+
+var COST_WEIGHT = 1.44;
+// This is exactly what's needed to prevent the 45/32 tritone
+// from being adjusted to 25/18.
+
+
+var lastBestTweak = ONE;
+function computeFrequencyOffset(index) {
+    var x = index%12;
+    if (index < 0) {
+        x = 12 - ((-index)%12);
+    }
+    var tuningSystem = document.getElementById("tuning").value;
+    // Pre-set tunings
+    var octaveMultiplier = Math.pow(2,Math.floor(index/12));
+    if (tuningSystem === "et") {
+        return EQUAL_TEMPERAMENT[x] * octaveMultiplier;
+    } else if (tuningSystem === "just") {
+        return JUST_INTONATION[x].toFloat() * octaveMultiplier;
+    } else if (tuningSystem === "pyth") {
+        return PYTHAGOREAN_TUNING[x].toFloat() * octaveMultiplier;
+    }
+
+    // Adjustable tuning:
+    var octave = powerOfTwo(Math.floor(index/12));
+    var basic = JUST_INTONATION[x];
+    // See if we can improve the harmony by adjusting basic up or down.
+    var otherNotesFloats = Object.keys(notesPlayingNow);
+    if (otherNotesFloats.length === 0) {
+        lastBestTweak = ONE;
+        return basic.times(octave);
+    }
+
+    var otherNotes = [];
+    for (var i=0; i<otherNotesFloats.length; i++) {
+        otherNotes.push(notesPlayingNow[otherNotesFloats[i]][0]);
+    }
+
+    var bestTweak;
+    var bestValue = -Infinity;
+    for (var i=0; i<TWEAKS.length*2; i++) {
+        var tweak = TWEAKS[i%TWEAKS.length];
+        var tweakCost = Math.abs(1 - tweak.toFloat());
+        if (i >= TWEAKS.length) {
+            tweak = tweak.times(lastBestTweak);
+        }
+        var testNote = normalize(basic.times(tweak));
+        otherNotes.push(testNote);
+        var harmony = measureHarmony(otherNotes);
+        otherNotes.pop();
+        var harmonyBenefit = 1 / harmony;
+        var value = harmonyBenefit - COST_WEIGHT*tweakCost;
+        if (value > bestValue) {
+            bestValue = value;
+            bestTweak = tweak;
+        }
+    }
+
+    lastBestTweak = bestTweak;
+    return basic.times(bestTweak).times(octave);
+}
+
+
+var FUNDAMENTAL = 262;
+var oscillators = {};
+
+
+function addClass(element, additionalClass) {
+    element.className += (" " + additionalClass);
+}
+
+
+function removeClass(element, removingClass) {
+    var classesArray = element.className.split(" ");
+    var newClasses = "";
+    for (var i=0; i<classesArray.length; i++) {
+        var c = classesArray[i];
+        if (c !== removingClass) {
+            newClasses += (" " + c);
+        }
+    }
+    element.className = newClasses.slice(1);
+}
+
+
+var possibleWaveforms = ["sawtooth","square","triangle","sine"];
+var SUSTAIN = false;
+var OCTAVE_OFFSET = 0;
+var controlsMap = {
+    78: {
+        down: function() {
+            $("#keyn").addClass("pressed");
+            $("#controls .selected").removeClass("selected");
+            WAVEFORM = possibleWaveforms[(possibleWaveforms.indexOf(WAVEFORM)+1)%4];
+            $("#controls ."+WAVEFORM).addClass("selected");
+        },
+        up: function() {
+
+            $("#keyn").removeClass("pressed");
+        }
+    },
+    192: { // _GRAVE
+        down: function() {
+            $("#key_GRAVE").addClass("pressed");
+        },
+        up: function() {
+            $("#key_GRAVE").removeClass("pressed");
+            OCTAVE_OFFSET--;
+        }
+    },
+    220: { // _BACKSLASH
+        down: function() {
+            $("#key_BACKSLASH").addClass("pressed");
+        },
+        up: function() {
+            $("#key_BACKSLASH").removeClass("pressed");
+            OCTAVE_OFFSET++;
+        }
+    }
+};
+
+
+function normalize(offset) {
+    var x = offset.copy();
+    while (x.num >= 2*x.den) {
+        x = x.times(HALF);
+    }
+    while (x.num < x.den) {
+        x = x.times(TWO);
+    }
+    return x;
+}
+
+function isAutoAdjusting() {
+    return document.getElementById("tuning").value === "auto";
+}
+
+function offsetToFloat(offset) {
+    if ("number" === typeof offset) {
+        return offset;
+    } else {
+        return offset.toFloat();
+    }
+}
+
+
+document.onkeydown = function(e) {
+    e = e || window.event;
+    var kc = e.keyCode;
+    if (characterMap[kc] && !oscillators[kc]) {
+        var cha = characterMap[kc];
+        var div = document.getElementById("key"+cha);
+        addClass(div, "pressed");
+        if ("undefined" !== typeof(keyMap[kc])) {
+            var offset = computeFrequencyOffset(keyMap[kc]);
+            if (isAutoAdjusting()) {
+                var normalized = normalize(offset);
+                var ntf = normalized.toFloat();
+                if (!notesPlayingNow[ntf]) {
+                    notesPlayingNow[ntf] = [];
+                }
+                notesPlayingNow[ntf].push(normalized);
+            }
+            var line = addNoteLine(offset);
+            var frequency = FUNDAMENTAL * offsetToFloat(offset) * Math.pow(2, OCTAVE_OFFSET);
+            var oscillator = tone(frequency, VOLUME, WAVEFORM);
+            oscillator.offset = offset;
+            oscillator.line = line;
+            oscillators[kc] = oscillator;
+        } 
+    } else if (controlsMap[kc]) {
+        controlsMap[kc].down();
+    }
+}
+
+
+document.onkeyup = function(e) {
+    e = e || window.event;
+    var kc = e.keyCode;
+    if (oscillators[kc] && !SUSTAIN) {
+       var cha = characterMap[kc];
+        var div = document.getElementById("key"+cha);
+        removeClass(div, "pressed");
+        var osc = oscillators[kc];
+        osc.stop(0);
+        if ("object" === typeof osc.offset) {
+            var ntf = normalize(osc.offset).toFloat();
+            notesPlayingNow[ntf].pop();
+            if (!notesPlayingNow[ntf].length) {
+                delete notesPlayingNow[ntf];
+            }
+        }
+        removeLine(osc.line);
+        delete oscillators[kc];
+    } else if (controlsMap[kc]) {
+        controlsMap[kc].up();
+    }
+}
+
+
+function stopPlayingKc(kc) {
+    var cha = characterMap[kc];
+    var div = document.getElementById("key"+cha);
+    removeClass(div, "pressed");
+    var osc = oscillators[kc];
+    osc.stop(0);
+    delete oscillators[kc];
+    hideMySymbol(cha);
+}
+
+
+function showMySymbol(cha, waveform) {
+    var div = $("#box"+cha+" div:last-child");
+    div.addClass(waveform);
+}
+
+
+function hideMySymbol(cha) {
+    var div = $("#box"+cha+" div:last-child");
+    div.removeClass();
+}
+
+
+$(function(){
+    var sel = $(".w, .b");
+    sel.append("<div></div>");
+});
+
+
+</script>
+</body>
+</html>
