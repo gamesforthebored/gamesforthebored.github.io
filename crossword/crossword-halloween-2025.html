@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Crossword Halloween 2025: Manmade Horrors</title>
+<style>
+.cell, .blank {
+	border: 1px solid black;
+	display: inline-block;
+	width: 26px;
+	height: 26px;
+	padding: 2px;
+	font-family: Arial;
+	font-size: 12px;
+	position: relative;
+	cursor: default;
+}
+.cell input {
+	border: none;
+	width: 26px;
+	height: 28px;
+	background-color: transparent;
+	position: absolute;
+	left: 0;
+	top: 0;
+	font-family: "Courier New", "Courier", monospace;
+	text-transform: uppercase;
+	font-size: 26px;
+	font-weight: bold;
+	text-align: center;
+	outline: none;
+}
+.cell input, .highlight {
+	color: red;
+}
+.blank {
+	background-color: black;
+}
+.number {
+	z-index: 1;
+	position: relative;
+	pointer-events: none;
+}
+h1, h2, h3, p, #clueList, #noscript {
+	font-family: Georgia;
+}
+button {
+	margin-left: 15px;
+}
+
+#main {
+	border: 1px solid black;
+	display: inline-block;
+	float: left;
+	white-space: nowrap;
+}
+#main.noNumbers .number, #main.noLetters input {
+	visibility: hidden;
+}
+#rightSide {
+	float: none;
+	overflow: hidden;
+}
+#clueBox, #clueList {
+	margin-left: 15px;
+	font-size: 18px;
+}
+#clueListOuter {
+	border: 1px solid black;
+	margin-left: 15px;
+	overflow-x: scroll;
+	height: 0;
+}
+#clueList {
+	margin-top: 15px;
+	column-width: 250px;
+	break-inside: avoid;
+}
+#clueList div {
+	break-inside: avoid;
+}
+#clueList li {
+	margin-left: -10px;
+}
+#clueList li:empty {
+	visibility: hidden;
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+
+
+</style>
+</head>
+<body>
+
+<h1>Crossword Halloween 2025: Manmade Horrors</h1>
+<h3 style="display:inline">By <a target="_blank" href="https://www.lesswrong.com/users/jchan">Jchan</a></h3>
+<button onclick="toggleNumbers()">Toggle numbers</button>
+<button onclick="toggleLetters()">Toggle letters</button>
+<button onclick="saveLoad()">Save/load</button>
+<div style="clear:both; margin-bottom: 30px"></div>
+
+<noscript><span id="noscript">JavaScript is required. (Or, try the <a href="/crossword/crossword-halloween-2025.pdf">PDF version</a> of this puzzle.)</span></noscript>
+<div id="dynamic" style="display: none">
+	<div id="main"></div>
+	<div id="rightSide">
+		<div id="clueBoxOuter">
+			<div id="clueBox">
+				<p style="margin-top: 0"><b id="acrossClueLabel"></b>&nbsp;<span id="acrossClueText"></span></p>
+				<p><b id="downClueLabel"></b>&nbsp;<span id="downClueText"></span></p>
+			</div>
+		</div>
+		<div id="clueListOuter">
+			<div id="clueList">
+				<div>
+					<b>Across</b>
+					<ol id="acrossList"></ol>
+				</div>
+				<div>
+					<b>Down</b>
+					<ol id="downList"></ol>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+<div style="clear:both"></div>
+
+
+<script>
+
+
+const SHAPE = `
+   ......   ..... ...
+  ........  ..... ...
+........... ..... ...
+...... .....  .......
+.... ... ...... .... 
+... ... ........ ....
+ ...... ...... ......
+   ...... ... ... ...
+.... ........ ....   
+.....  ....   .......
+....... ..... .......
+.......   ....  .....
+   .... ........ ....
+... ... ... ......   
+...... ...... ...... 
+.... ........ ... ...
+ .... ...... ... ....
+.......  ..... ......
+... ..... ...........
+... .....  ........  
+... .....   ......   
+`;
+
+const ACROSS_CLUES = `
+Small courtesy
+Current President of Turkey, among friends
+Inheritance (abbr.)
+Nose-cutting king
+Dance around
+Day in the life of Moses
+Sheepskins
+Italian staple
+Gun-toting org.
+Forthright
+Discord
+Drill sergeant type
+Elects
+Underground Play Store format
+*** Manmade horror #2
+Identical
+Pod dweller
+Ross of State University fame
+Zombie neighborhoods
+Marcel Marceau, for one
+El Capitan's successor
+*** The telltale sign
+Day of the Bunny
+Less slack
+CYA, in corpospeak
+Lou Gehrig's disease (abbr.)
+Chang's right-hand man
+User verification, for short
+*** What lurks behind the friendly mask
+Second-rate
+Irish pub vibe
+Circular interface
+Gooning
+Yet to be born
+One may inquire into its nature, but will only be met with derision
+Ayatollah's frosty tequila joint?
+Duchess of Aquitaine
+Clinic or County
+Excellence in Plato
+Cerebral segment
+*** What is left for us humans
+Inspired
+Do something
+Sun., Mon., ___
+Tabloid, derisively
+Takes place
+Ingester
+*** Manmade horror #3
+Fiction systematizer
+Post of computer science
+Triggered
+___ out a meager living
+Gamer's bane
+Meaningless filler word
+*** Maker of horror #1
+Romani ___ domum
+Texas Longhorns mascot
+Robert Francis, lately going by another name
+Bulb filler
+Excited in the '90s
+Target
+Candidate list
+Plant-based poisons
+Cartesian conclusion
+Spirit animal
+Toothy
+12 Across's counterpart
+Coven production
+Shaggy exclamation
+`;
+
+const DOWN_CLUES = `
+Networkers
+Enrages
+Between Crux and Lupus
+First responder (abbr.)
+Viscous
+Nah's complement
+Lower house pol
+Perón's lady
+Tree nut, often roasted
+Disodium additive
+Oblong fruits
+Nobel's legacy
+Village pillagers
+Reddit Q&As
+Anime, of a sort
+French rapper Alpha Diallo
+Guillotine operation
+What you show the newbie
+*** The unspeakable name
+Pietà, Death of Marat, and the like
+Mother mares
+Namesake of poets' madness
+Soviet chess championship (abbr.)
+Homeric interjection
+Mrs. Iberian
+Renowned conductor Celibidache
+The Tejano Madonna
+0.0000001 joules
+On the up-and-up
+Eritrean capital
+When mgmt. wants those reports done by
+Bit of stuff
+Teenage bumps
+Mount Narodnaya, for example
+Don't ___ me bro
+Mountain pass
+Release
+Yucatán watering hole
+Wirers' org.
+Fill
+TV's eponymous talking horse
+Retrograde cricopharyngeus dysfunction, colloquially
+Might be found in a forest
+Bagram Airfield code
+Fembot
+Mordor grunt
+Half a longa
+Comic book Scott's love interest
+Byte
+Land of the Oghuz
+Hominoid
+Explosion period
+Münchhausen- or Zooko-type situation
+Caviar
+Russian or Pole
+Elephant logo org.
+Barnyard downvotes
+Electabuzz prequel
+One of Ebony Way's many names
+Spin
+The ___ of the Copybook Headings
+Sabaoth
+Opening, for short
+Goes for a round of fisticuffs
+Couple
+Dead internet content
+Thrice-given call at the council of nine
+LoZ after BotW
+___ Aviv
+Thunderbird filetype
+Forest spirit of 2015 game
+`;
+
+let lines = SHAPE.split("\n");
+let matrix = [];
+for (let i=0; i<lines.length; i++) {
+	let line = lines[i];
+	if (!line) {
+		continue;
+	}
+	matrix.push(line.split(""));
+}
+const size = matrix.length;
+function get(r, c) {
+	if (r<0 || r>=size || c<0 || c>=size) {
+		return " ";
+	} else {
+		return matrix[r][c];
+	}
+}
+let acrossClues = ACROSS_CLUES.split("\n").filter(x=>x);
+let downClues = DOWN_CLUES.split("\n").filter(x=>x);
+let acrossCluesMap = {}, downCluesMap = {}, clueToInputMap = {};
+let acrossIncrementer = 0, downIncrementer = 0;
+
+let html = "";
+let number = 1;
+let indices = new Array(size);
+for (let i=0; i<size; i++) {
+	indices[i] = new Array(size);
+	for (let j=0; j<size; j++) {
+		indices[i][j] = {};
+	}
+}
+for (let r=0; r<size; r++) {
+	html += '<div class="row">';
+	for (let c=0; c<size; c++) {
+		let s = get(r, c);
+		if (s === " ") {
+			html += '<div class="blank">&nbsp;</div>';
+		} else {
+			let newNumber = false;
+			let acrossIndex, downIndex, acrossNumber, downNumber;
+			let here = indices[r][c];
+			if (get(r, c-1) === " ") {
+				newNumber = true;
+				here.acrossIndex = 1;
+				here.acrossNumber = number;
+				acrossCluesMap[number] = acrossClues[acrossIncrementer];
+				acrossIncrementer++;
+			} else {
+				let leftNeighbor = indices[r][c-1];
+				here.acrossIndex = leftNeighbor.acrossIndex + 1;
+				here.acrossNumber = leftNeighbor.acrossNumber;
+			}
+			if (get(r-1, c) === " ") {
+				newNumber = true;
+				here.downIndex = 1;
+				here.downNumber = number;
+				downCluesMap[number] = downClues[downIncrementer];
+				downIncrementer++;
+			} else {
+				let topNeighbor = indices[r-1][c];
+				here.downIndex = topNeighbor.downIndex + 1;
+				here.downNumber = topNeighbor.downNumber;
+			}
+			let id = "i" + r + "_" + c;
+			let inputHtml = '<input id="'
+				+ id
+				+ '" type="text" maxlength="1" onchange="unclean=true" onblur="blurInput(this)" onfocus="focusInput(this)" onkeydown="keyPress(event.key, this)" data-ai="'
+				+ here.acrossIndex
+				+ '" data-an="'
+				+ here.acrossNumber
+				+ '" data-di="'
+				+ here.downIndex
+				+ '" data-dn="'
+				+ here.downNumber+'"/>';
+
+			if (newNumber) {
+				if (here.acrossIndex === 1) {
+					clueToInputMap["a" + here.acrossNumber] = id;
+				}
+				if (here.downIndex === 1) {
+					clueToInputMap["d" + here.downNumber] = id;
+				}
+				html += ('<div class="cell"><span class="number">' +
+					number + '</span>' + inputHtml + '</div>');
+				number++;
+			} else {
+				html += '<div class="cell">&nbsp;' + inputHtml + '</div>';
+			}
+		}
+	}
+	html += '</div>';
+}
+document.getElementById("main").innerHTML = html;
+
+document.getElementById("dynamic").style.display = null;
+
+document.getElementById("clueListOuter").style.height =
+	(document.getElementById("main").clientHeight - document.getElementById("clueBoxOuter").clientHeight - 18) + "px";
+	
+
+function printClues(cluesMap, olElement, idPrefix) {
+	let keys = Object.keys(cluesMap);
+	let inc = 1;
+	let html = "";
+	for (let i=0; i<keys.length; i++) {
+		let key = keys[i];
+		while (inc < +key) {
+			html += "<li></li>";
+			inc++;
+		}
+		html += ('<li onclick="focusClue(this)" id="' + idPrefix + key + '">'+cluesMap[key]+'</li>');
+		inc++;
+	}
+	olElement.innerHTML = html;
+}
+printClues(acrossCluesMap, document.getElementById("acrossList"), "a");
+printClues(downCluesMap, document.getElementById("downList"), "d");
+
+function toggleLetters() {
+	document.getElementById("main").classList.toggle("noLetters");
+}
+
+function toggleNumbers() {
+	document.getElementById("main").classList.toggle("noNumbers");
+}
+
+let unclean = false;
+function getSolution() {
+	let output = "";
+	for (let r=0; r<size; r++) {
+		for (let c=0; c<size; c++) {
+			let input = document.getElementById("i" + r + "_" + c);
+			if (input) {
+				if (input.value.trim()) {
+					output += input.value.trim().toUpperCase();
+				} else {
+					output += ".";
+				}
+			} else {
+				output += "#";
+			}
+		}
+		output += "/";
+	}
+	return output.substring(0, output.length-1);
+}
+
+function enterSolution(solutionText) {
+	let solutionStripped = solutionText.replaceAll("/", "");
+	if (solutionStripped.length !== size * size) {
+		alert("Invalid solution!");
+		return;
+	}
+	for (let i=0; i<solutionStripped.length; i++) {
+		let s = solutionStripped.charAt(i);
+		let r = Math.floor(i/size);
+		let c = i % size;
+		let input = document.getElementById("i" + r + "_" + c);
+		if (s !== "#" && s !== ".") {
+			if (input) {
+				input.value = s;
+			}
+		} else {
+			if (input) {
+				input.value = "";
+			}
+		}
+	}
+}
+
+function saveLoad() {
+	let promptValue = prompt("To save your solution, copy the text below. To load, paste your solution below and click OK.", getSolution());
+	unclean = false;
+	if (promptValue) {
+		enterSolution(promptValue.trim());
+	}
+}
+
+window.onbeforeunload = function() {
+	return unclean ? true : void(0);
+}
+
+function blurInput(input) {
+	let acrossNumber = input.dataset.an;
+	let downNumber = input.dataset.dn;
+	document.getElementById("a" + acrossNumber).classList.remove("highlight");
+	document.getElementById("d" + downNumber).classList.remove("highlight");
+	document.getElementById("acrossClueLabel").innerText = "";
+	document.getElementById("downClueLabel").innerText = "";
+	document.getElementById("acrossClueText").innerText = "";
+	document.getElementById("downClueText").innerText = "";
+}
+
+let focusTimeout = void(0);
+
+function focusInput(input) {
+	let acrossNumber = input.dataset.an;
+	let downNumber = input.dataset.dn;
+	let acrossClue = acrossCluesMap[acrossNumber];
+	let downClue = downCluesMap[downNumber];
+	document.getElementById("a" + acrossNumber).classList.add("highlight");
+	document.getElementById("d" + downNumber).classList.add("highlight");
+	document.getElementById("acrossClueLabel").innerText = acrossNumber + " Across:";
+	document.getElementById("downClueLabel").innerText = downNumber + " Down:";
+	document.getElementById("acrossClueText").innerText = acrossClue;
+	document.getElementById("downClueText").innerText = downClue;
+	if (focusTimeout) {
+		clearTimeout(focusTimeout);
+	}
+	focusTimeout = setTimeout(function(){input.select()}, 4);
+}
+
+function focusClue(clue) {
+	let input = document.getElementById(clueToInputMap[clue.id]);
+	focusInput(input);
+}
+
+function keyPress(key, input) {
+	let rightMovement = key==="ArrowRight" ? 1 : key==="ArrowLeft" ? -1 : 0;
+	let downMovement = key==="ArrowDown" ? 1 : key==="ArrowUp" ? -1 : 0;
+	if (rightMovement || downMovement) {
+		let coords = input.id.slice(1).split("_");
+		let newRow = +coords[0];
+		let newCol = +coords[1];
+		let newInput;
+		if (rightMovement) {
+			while (!newInput && newCol >=0 && newCol < size) {
+				newCol += rightMovement;
+				newInput = document.getElementById("i" + newRow + "_" + newCol);
+			}
+		}
+		if (downMovement) {
+			while (!newInput && newRow >=0 && newRow < size) {
+				newRow += downMovement;
+				newInput = document.getElementById("i" + newRow + "_" + newCol);
+			}
+		}
+		if (newInput) {
+			newInput.focus();
+		}
+	} else if (key === "Backspace") {
+		input.value = "";
+	}
+}
+
+</script>
+</body>
+</html>
