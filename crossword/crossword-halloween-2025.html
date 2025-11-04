@@ -43,7 +43,7 @@
 h1, h2, h3, p, #clueList, #noscript {
 	font-family: Georgia;
 }
-button {
+button, #pdfLink {
 	margin-left: 15px;
 }
 
@@ -87,8 +87,6 @@ button {
 	top: 0;
 	left: 0;
 }
-
-
 </style>
 </head>
 <body>
@@ -98,6 +96,7 @@ button {
 <button onclick="toggleNumbers()">Toggle numbers</button>
 <button onclick="toggleLetters()">Toggle letters</button>
 <button onclick="saveLoad()">Save/load</button>
+<a id="pdfLink" href="/crossword/crossword-halloween-2025.pdf" target="_blank">PDF</a>
 <div style="clear:both; margin-bottom: 30px"></div>
 
 <noscript><span id="noscript">JavaScript is required. (Or, try the <a href="/crossword/crossword-halloween-2025.pdf">PDF version</a> of this puzzle.)</span></noscript>
@@ -334,7 +333,7 @@ for (let i=0; i<size; i++) {
 	}
 }
 for (let r=0; r<size; r++) {
-	html += '<div class="row">';
+	html += '<div>';
 	for (let c=0; c<size; c++) {
 		let s = get(r, c);
 		if (s === " ") {
@@ -343,10 +342,12 @@ for (let r=0; r<size; r++) {
 			let newNumber = false;
 			let acrossIndex, downIndex, acrossNumber, downNumber;
 			let here = indices[r][c];
+			let id = "i" + r + "_" + c;
 			if (get(r, c-1) === " ") {
 				newNumber = true;
 				here.acrossIndex = 1;
 				here.acrossNumber = number;
+				clueToInputMap["a" + number] = id;
 				acrossCluesMap[number] = acrossClues[acrossIncrementer];
 				acrossIncrementer++;
 			} else {
@@ -358,6 +359,7 @@ for (let r=0; r<size; r++) {
 				newNumber = true;
 				here.downIndex = 1;
 				here.downNumber = number;
+				clueToInputMap["d" + number] = id;
 				downCluesMap[number] = downClues[downIncrementer];
 				downIncrementer++;
 			} else {
@@ -365,7 +367,6 @@ for (let r=0; r<size; r++) {
 				here.downIndex = topNeighbor.downIndex + 1;
 				here.downNumber = topNeighbor.downNumber;
 			}
-			let id = "i" + r + "_" + c;
 			let inputHtml = '<input id="'
 				+ id
 				+ '" type="text" maxlength="1" onchange="unclean=true" onblur="blurInput(this)" onfocus="focusInput(this)" onkeydown="keyPress(event.key, this)" data-ai="'
@@ -378,12 +379,6 @@ for (let r=0; r<size; r++) {
 				+ here.downNumber+'"/>';
 
 			if (newNumber) {
-				if (here.acrossIndex === 1) {
-					clueToInputMap["a" + here.acrossNumber] = id;
-				}
-				if (here.downIndex === 1) {
-					clueToInputMap["d" + here.downNumber] = id;
-				}
 				html += ('<div class="cell"><span class="number">' +
 					number + '</span>' + inputHtml + '</div>');
 				number++;
@@ -515,9 +510,7 @@ function focusInput(input) {
 }
 
 function focusClue(clue) {
-	let selection = window.getSelection();
-	let selectedText = selection.toString().trim();
-	if (!selectedText || selectedText.length === 0) {
+	if (!window.getSelection().toString()) {
 		let input = document.getElementById(clueToInputMap[clue.id]);
 		focusInput(input);
 	}
