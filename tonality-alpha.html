@@ -1430,16 +1430,16 @@ function findBounds(anchor, floating) {
 	}
 	return [lower, upper];
 }
-
+var INSTRUMENT_LETTERS = {
+	s: "sine",
+	t: "triangle",
+	q: "square",
+	p: "pulse",
+	u: "superpulse",
+	w: "sawtooth"
+};
 function chooseWaveform(instrumentLetter) {
-	return !instrumentLetter ? waveform : {
-		s: "sine",
-		t: "triangle",
-		q: "square",
-		p: "pulse",
-		u: "superpulse",
-		w: "sawtooth"
-	}[instrumentLetter];
+	return !instrumentLetter ? waveform : INSTRUMENT_LETTERS[instrumentLetter];
 }
 
 var timeouts = [];
@@ -1680,7 +1680,12 @@ function compileNotation(notation) {
 			}
 		} else if (token[0] === "$") {
 			if (token.length > 1) {
-				forcedInstrument = token[1];
+				if (token.length === 2 && INSTRUMENT_LETTERS[token[1]]) {
+					forcedInstrument = token[1];
+				} else {
+					invalidTokens.push(i);
+					continue;
+				}
 			} else {
 				forcedInstrument = "";
 			}
