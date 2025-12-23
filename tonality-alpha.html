@@ -110,14 +110,47 @@ textarea, #highlights {
 	background-color: #0a0;
 }
 
-#playButton, #recordButton {
+#playButton, .blockedWhilePlaying {
 	cursor: pointer;
+}
+#playControls.playing .blockedWhilePlaying {
+	cursor: not-allowed;
 }
 #recordIndicator {
 	width: 24px;
 	text-align: center;
 	color:red;
 	display: inline-block;
+}
+#copiedTooltip {
+	font-size: 14pt;
+	position: absolute;
+	margin-top: 1px;
+	margin-left: -6px;
+	padding: 2px;
+	border-radius: 7px;
+	background-color: black;
+	color: white;
+	cursor: default;
+	text-wrap: nowrap;
+	visibility: hidden;
+	opacity: 0;
+	transition: opacity 0.2s;
+}
+#copiedTooltip::before {
+	content: "";
+	border-width: 6px;
+	border-style: solid;
+	border-color: transparent;
+	border-right: 6px solid black;
+	display: inline-block;
+	margin-top: 7px;
+	margin-left: -13.5px;
+	position: absolute;
+}
+#copiedTooltip.visible {
+	visibility: visible;
+	opacity: 1;
 }
 span.narrow {
 	margin: -3px;
@@ -220,7 +253,9 @@ span.narrow {
 </div>
 
 <div id="controls">
-	<div style="float:left">
+	<div style="float:left" id="playControls">
+		<span class="blockedWhilePlaying" onclick="shareLink()">#️⃣</span>
+		<span id="copiedTooltip">Copied link</span>
 		<select style="font-size: 20px" id="selector" onchange="setEditor(this)">
 			<option value="welcome">Welcome</option>
 			<option value="air">Air on the G String (Bach)</option>
@@ -237,9 +272,9 @@ span.narrow {
 			<option value="part6">6. Coarse & fine accidentals</option>
 			<option value="part7">7. Enharmonics</option>
 		</select>
-		<span onclick="skipToStart()" style="cursor:pointer">⏪</span>
+		<span onclick="skipToStart()" style="cursor: pointer">⏪</span>
 		<span onclick="playSong()" id="playButton">▶️</span>
-		<span onclick="startRecording()" id="recordButton">⏺</span>
+		<span class="blockedWhilePlaying" onclick="startRecording()" id="recordButton">⏺</span>
 		<span id="recordIndicator" style="display:none" title="Download audio file once playback stops">•</span>
 	</div>
 	<div style="float:right; text-align: right" id="waveforms">
@@ -268,7 +303,7 @@ C D E F G A B C
 
 {Tonality Composer is both an interactive introduction into music theory, and an open canvas for creating your own microtonal music. Go through the tutorial step-by-step, write your own tunes in this text box, or simply select one of the pre-written pieces above and watch the lights dance.}</div>
 <div id="string_air">T(8=60) K(F#+A+C#+)
-[ F'1~ | F8 B16 G F32~ E D16 Co D C+4 B+16~ A8. | A'2~ A16 F C@+,~ B E~ D# A~ G | G2~ G16 E+ B~ A D~ C G~ F | F4. G#+16~ A D,8 D32 E F8 E16 E~ D
+[ F'1~ | F8 B16 G F32~ E D16 Co D C+4 B+16~ A8. | A'2~ A16 F B#,~ B@ E~ D# A~ G | G2~ G16 E+ B~ A D~ C G~ F | F4. G#+16~ A D,8 D32 E F8 E16 E~ D
 / D'1~ | D4 B A2~ | A8 C@16 B C8 A'16 C, B8 R4. | B8 E16 D E F G E A,8 R4. | A2~ A8 G#16 A B8 G
 / A2 B | B,4 E E+2~ | E+8 Eb E~ E+ F R4. | E8 B4 E8 E+ R4. | D4. E+8 F D B Eo~
 / D,8 D' C C, B B' A A, | G G' G# G, A A' G@+ G, | F F' E+ E, D# D' B B' | E, E' D D, C C' A A' | D, D' C C, B B' G# E ]
@@ -282,7 +317,7 @@ C D E F G A B C
 
 |O|
 
-[ F'1~ | F8 B16 G F32~ E D16 Co D C+4 B+16~ A8. | A'2~ A16 F C@+,~ B E~ D# A~ G | G2~ G16 E+ B~ A D~ C G~ F | F4. G#+16~ A D,8 D32 E F8 E16 E~ D
+[ F'1~ | F8 B16 G F32~ E D16 Co D C+4 B+16~ A8. | A'2~ A16 F B#,~ B@ E~ D# A~ G | G2~ G16 E+ B~ A D~ C G~ F | F4. G#+16~ A D,8 D32 E F8 E16 E~ D
 / D'1~ | D4 B A2~ | A8 C@16 B C8 A'16 C, B8 R4. | B8 E16 D E F G E A,8 R4. | A2~ A8 G#16 A B8 G
 / A2 B | B,4 E E+2~ | E+8 Eb E~ E+ F R4. | E8 B4 E8 E+ R4. | D4. E+8 F D B Eo~
 / D,8 D' C C, B B' A A, | G G' G# G, A A' G@+ G, | F F' E+ E, D# D' B B' | E, E' D D, C C' A A' | D, D' C C, B B' G# E ]
@@ -615,9 +650,9 @@ Music is built from relations of numbers.}
 
 C1 R
 
-{This is Middle C, sounding at a frequency of 262 Hertz. (Press Play ▶️ to hear the notes as we go, and Stop ⏹ to keep reading. Place your cursor before each line of notes to start there.)
+{This is Middle C, sounding at a frequency of 264 Hertz. (Press Play ▶️ to hear the notes as we go, and Stop ⏹ to keep reading. Place your cursor before each line of notes to start there.)
 
-The most basic musical interval is the *octave*, which is a ratio of 2:1. The note one octave above Middle C, therefore, has a frequency of 524 Hz.}
+The most basic musical interval is the *octave*, which is a ratio of 2:1. The note one octave above Middle C, therefore, has a frequency of 528 Hz.}
 
 C' R
 
@@ -647,7 +682,7 @@ What if we instead go down by a fifth? This corresponds to a ratio of 2:3.}
 
 C2 F, O1 [C/F,] R O
 
-{But let's try to keep all of our notes within the same octave, i.e. between 262 Hz (1:1) and 524 Hz (2:1). This means we need to raise our new note by an octave, yielding a ratio of 4:3.}
+{But let's try to keep all of our notes within the same octave, i.e. between 264 Hz (1:1) and 528 Hz (2:1). This means we need to raise our new note by an octave, yielding a ratio of 4:3.}
 
 C2 F O1 [C/F] R O
 
@@ -971,7 +1006,7 @@ For a more complex demonstration of how "enharmonic equivalents" (i.e. notes tha
 
 T(4=80) K(BbEbAb) [
 R4 C' G E' | F+ D B F' | R E B Gb' | A+ F+ Db A' | R Gb Db Bbb' | Cb A Fb C' | R A Fb Db-' | R Bbb- Fb Db-' | R A Fb Db-' | Cb1~ | Cb /
-O1 [C/E/G'] | [B,/D/F+] | [B,/E/Gb] | [Db/F+/A+] | [Db,/Gb/Bbb] | [Fb/A/Cb] | [Fb,/A/Db-] | [Fb,/Bbb-/Db-] | [Fb,/A/Db-] | [Fb,~/Gb,~/Cb~] | [E,/Gb/Cb] ] | R1
+O1 [C/E/G'] | [B,/D/F+] | [B,/E/Gb] | [Db/F+/A+] | [Db,/Gb/Bbb] | [Fb/A/Cb] | [Fb,/A/Db-] | [Fb,/Bbb-/Db-] | [Fb,/A/Db-] | [Fb,~ E / Gb,~ G / Cb~ C] ] | R1
 
 {There's a lot going on here, but it shows the flexibility of our microtonal notation system. Starting with C minor, this chord progression makes a wide excursion around the grid, making it necessary to use certain notes that you would normally never see, such as Bbb (which is off the grid, just below Gb and Db), Cb, and Fb (which are usually considered the same as A, B, and E respectively). Also, the progression abruptly jumps down by one syntonic comma in order to correct for the "comma pump" phenomenon that would otherwise cause it to end far from where it started. (Can you hear the moment where this happens?)
 
@@ -979,7 +1014,7 @@ If we try writing the same tune "straightforwardly" using only single-flats and 
 
 O K(BbEbAb) [
 R4 C' G E' | F D B F' | R E B Gb' | A F Db A' | R Gb Db A@' | B@ A E@ B' | R A E@ Db' | R A@ E@ Db' | R A E@ Db' | B@1~ | B@ /
-O1 [C/E/G'] | [B,/D/F] | [B,/E/Gb] | [Db/F/A] | [Db,/Gb/A@] | [E@/A/B@] | [E@,/A/Db] | [E@,/A@/Db] | [E@,/A/Db] | [E@,~/Gb,~/B@~] | [E,/Gb/B@] ]
+O1 [C/E/G'] | [B,/D/F] | [B,/E/Gb] | [Db/F/A] | [Db,/Gb/A@] | [E@/A/B@] | [E@,/A/Db] | [E@,/A@/Db] | [E@,/A/Db] | [E@,~ Eb / Gb,~ G / B@~ B] ]
 
 {There are so many wolf intervals it's almost unrecognizable!}</div>
 
@@ -988,8 +1023,10 @@ O1 [C/E/G'] | [B,/D/F] | [B,/E/Gb] | [Db/F/A] | [Db,/Gb/A@] | [E@/A/B@] | [E@,/A
 <script>
 // Constants:
 const MIDDLE_C = 264;
-const NOTE_BREAK = 0.9;
-const NOISE_BREAK = 0.75;
+const NOTE_BREAK = 0.1;
+const NOISE_BREAK = 0.25;
+const BREAK_MAX_MS = 100;
+const FADEOUT_MS = 100;
 const BASE_VOLUME = 0.02;
 const RECORDING_GAIN = 3;
 const INSTRUMENT_LETTERS = {
@@ -1019,11 +1056,14 @@ const ELEMENTS = {
 	song: document.getElementById("song"),
 	waveforms: document.getElementById("waveforms"),
 	selector: document.getElementById("selector"),
+	playControls: document.getElementById("playControls"),
+	playButton: document.getElementById("playButton"),
 	recordButton: document.getElementById("recordButton"),
-	recordIndicator: document.getElementById("recordIndicator")
+	recordIndicator: document.getElementById("recordIndicator"),
+	copiedTooltip: document.getElementById("copiedTooltip")
 };
 // Global state representing the current playback:
-const GLOBAL = {
+const PLAYBACK_STATE = {
 	playing: false, // Whether it is currently playing
 	waveform: void(0), // Selected waveform, used if none is specified in the notation 
 	recording: false, // Whether it is currently recording
@@ -1069,12 +1109,14 @@ function parseTextByTokens(text) {
 	}
 	return output;
 }
+
 function refreshHighlights() {
-	if (GLOBAL.playing) {
+	if (PLAYBACK_STATE.playing) {
 		stop();
 	}
 	ELEMENTS.highlights.innerHTML = parseTextByTokens(ELEMENTS.song.value);
 }
+
 function scrollEditor(element, event) {
 	let position = event.target.scrollTop;
 	ELEMENTS.highlights.scrollTo(0, position);
@@ -1083,6 +1125,7 @@ function scrollEditor(element, event) {
 		event.preventDefault();
 	}
 }
+
 function setHighlighting(tokenIndex, status) {
 	let tokenSpan = document.getElementById("ht_" + tokenIndex);
 	if (tokenSpan) {
@@ -1097,11 +1140,13 @@ function setHighlighting(tokenIndex, status) {
 		}
 	}
 }
+
 function displayErrors(compilationErrors) {
 	for (let i=0; i<compilationErrors.length; i++) {
 		setHighlighting(compilationErrors[i], 2);
 	}
 }
+
 function displayDissonances(dissonances) {
 	for (let i=0; i<dissonances.length; i++) {
 		setHighlighting(dissonances[i], 3);
@@ -1132,6 +1177,7 @@ function displayDissonances(dissonances) {
 		cell.id = id;
 	}
 })();
+
 function activateCell(noteName) {
 	let cell = document.getElementById("cell_" + noteName);
 	if (cell) {
@@ -1139,6 +1185,7 @@ function activateCell(noteName) {
 		cell.classList.add("active");
 	}
 }
+
 function deactivateCell(noteName) {
 	let cell = document.getElementById("cell_" + noteName);
 	if (cell) {
@@ -1154,7 +1201,7 @@ function deactivateCell(noteName) {
 // Controls:
 
 function setWaveform(element) {
-	GLOBAL.waveform = element.id.substring(2);
+	PLAYBACK_STATE.waveform = element.id.substring(2);
 	let spans = ELEMENTS.waveforms.getElementsByTagName("span");
 	for (let i=0; i<spans.length; i++) {
 		let span = spans[i];
@@ -1165,25 +1212,41 @@ function setWaveform(element) {
 		}
 	}
 }
+
 setWaveform(document.getElementById("w_triangle"));
 
 function skipToStart() {
 	ELEMENTS.song.selectionStart = 0;
 	ELEMENTS.song.selectionEnd = 0;
 }
-function setEditor(element) {
+
+const SHARED_SONG_OPTION = "shared";
+let sharedSongText = "";
+let sharedSongEncoding = "";
+
+function setEditor(element, keepHash) {
 	let value = element.value;
 	if (value) {
-		let string = document.getElementById("string_" + value).innerText;
+		let string;
+		if (value === SHARED_SONG_OPTION) {
+			string = sharedSongText;
+			window.location.hash = sharedSongEncoding;
+		} else {
+			string = document.getElementById("string_" + value).innerText;
+			if (!keepHash && window.location.hash && window.location.hash.length>1) {
+				window.location.hash = "";
+			}
+		}
 		ELEMENTS.song.value = string;
 		refreshHighlights();
-		if (GLOBAL.playing) {
+		if (PLAYBACK_STATE.playing) {
 			stop();
 		}
 		skipToStart();
 	}
 }
-setEditor(ELEMENTS.selector);
+
+setEditor(ELEMENTS.selector, true);
 
 
 // -----
@@ -1192,24 +1255,32 @@ setEditor(ELEMENTS.selector);
 function createPulseWaveform(audioContext, d, terms) {
 	// https://en.wikipedia.org/wiki/Fourier_series#Table_of_common_Fourier_series
 	let precision = 100000000;
-	let real = [d];
-	let imag = [0];
+	let real = new Float32Array(terms);
+	let imag = new Float32Array(terms);
+	real[0] = d;
+	imag[0] = 0;
 	for (let n=1; n<terms; n++) {
 		real[n] = Math.round(precision*Math.sin(2*Math.PI*n*d)/(Math.PI*n))/precision;
 		imag[n] = Math.round(precision*2*Math.pow(Math.sin(Math.PI*n*d),2)/(Math.PI*n))/precision;
 	}
 	return audioContext.createPeriodicWave(real, imag);
 }
+
 function createRecorder(stream) {
+	if (!stream || !window.MediaRecorder) {
+		ELEMENTS.recordButton.style.cursor = "not-allowed";
+		ELEMENTS.recordButton.onclick = null;
+		ELEMENTS.recordButton.title = "Your browser does not support audio recording.";
+		return;
+	}
 	// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaStreamDestination
-	new MediaRecorder(stream);
 	let mediaRecorderChunks = [];
 	let mediaRecorder = new MediaRecorder(stream);
 	mediaRecorder.ondataavailable = (evt) => {
 		mediaRecorderChunks.push(evt.data);
 	};
 	mediaRecorder.onstop = (evt) => {
-		const blob = new Blob(mediaRecorderChunks, { type: "audio/ogg; codecs=vorbis" });
+		let blob = new Blob(mediaRecorderChunks, { type: "audio/ogg; codecs=vorbis" });
 		let url = window.URL.createObjectURL(blob);
 		let a = document.createElement("a");
 		a.style = "display: none";
@@ -1223,6 +1294,7 @@ function createRecorder(stream) {
 	};
 	return mediaRecorder;
 }
+
 const AUDIO = (function(){
 	// http://stackoverflow.com/a/29641185
 	let AudioContext = window.AudioContext || window.webkitAudioContext || window.audioContext;
@@ -1231,7 +1303,7 @@ const AUDIO = (function(){
 		ELEMENTS.song.value = "Your browser doesn't support audio synthesis. Try one of the browsers listed here: https://caniuse.com/audio-api";
 	}
 
-	let recordingDestination = audioCtx.createMediaStreamDestination();
+	let recordingDestination = audioCtx.createMediaStreamDestination && audioCtx.createMediaStreamDestination();
 
 	// Create buffer for white noise
 	let bufferSize = 2 * audioCtx.sampleRate;
@@ -1245,8 +1317,10 @@ const AUDIO = (function(){
 		context: audioCtx,
 		pulseWaveform: audioCtx && createPulseWaveform(audioCtx, 0.25, 30),
 		superpulseWaveform: audioCtx && createPulseWaveform(audioCtx, 0.125, 30),
+		pulseWaveformInv: audioCtx && createPulseWaveform(audioCtx, 0.75, 30),
+		superpulseWaveformInv: audioCtx && createPulseWaveform(audioCtx, 0.875, 30),
 		recordingDestination: recordingDestination,
-		recorder: createRecorder(recordingDestination.stream),
+		recorder: createRecorder(recordingDestination && recordingDestination.stream),
 		noiseBuffer: noiseBuffer
 	};
 })();
@@ -1260,23 +1334,34 @@ function tone(frequency, type) {
 	oscillator.connect(gainNode);
     oscillator.frequency.value = frequency;
     if (type === "pulse") {
-		oscillator.setPeriodicWave(AUDIO.pulseWaveform);
+		oscillator.setPeriodicWave(Math.random()>0.5 ? AUDIO.pulseWaveform : AUDIO.pulseWaveformInv);
 	} else if (type === "superpulse") {
-		oscillator.setPeriodicWave(AUDIO.superpulseWaveform);
+		oscillator.setPeriodicWave(Math.random()>0.5 ? AUDIO.superpulseWaveform : AUDIO.superpulseWaveformInv);
     } else {
     	oscillator.type = type;
     }
 	gainNode.connect(AUDIO.context.destination);
-	if (GLOBAL.recording) {
+	if (PLAYBACK_STATE.recording) {
 		let recordingGainNode = AUDIO.context.createGain();
 		recordingGainNode.gain.value = RECORDING_GAIN;
 		gainNode.connect(recordingGainNode);
 		recordingGainNode.connect(AUDIO.recordingDestination);
 	}
-	gainNode.gain.value = BASE_VOLUME * VOLUME_ADJUSTMENT[type];
+	let gainValue = BASE_VOLUME * VOLUME_ADJUSTMENT[type];
+	gainNode.gain.value = gainValue;
 	oscillator.start();
-	return oscillator;
+	return {
+		stop: function(){
+			// Fade out for a short time after the note "officially" ends, to soften the popping sound that would otherwise result from abruptly dropping to 0.
+			let currentTime = AUDIO.context.currentTime;
+			gainNode.gain.setValueAtTime(gainValue, currentTime);
+			let stopTime = currentTime + FADEOUT_MS/1000;
+			gainNode.gain.linearRampToValueAtTime(0, stopTime);
+			oscillator.stop(stopTime);
+		}
+	}
 }
+
 function noiseTone() {
 	let gainNode = AUDIO.context.createGain();
 	let whiteNoise = AUDIO.context.createBufferSource();
@@ -1284,7 +1369,7 @@ function noiseTone() {
 	whiteNoise.loop = true;
 	whiteNoise.connect(gainNode);
 	gainNode.connect(AUDIO.context.destination);
-	if (GLOBAL.recording) {
+	if (PLAYBACK_STATE.recording) {
 		let recordingGainNode = AUDIO.context.createGain();
 		recordingGainNode.gain.value = RECORDING_GAIN;
 		gainNode.connect(recordingGainNode);
@@ -1310,6 +1395,7 @@ function gcd(a,b) {
         b %= a;
     }
 }
+
 function Rat(num,den) {
     this.num = num;
     this.den = den;
@@ -1364,12 +1450,14 @@ Rat.prototype.gt = function(x) {
 Rat.prototype.lt = function(x) {
 	return this.num*x.den < x.num*this.den;
 }
+
 const JUST_INTONATION_RAT = {
     C: new Rat(1,1), D: new Rat(9,8), E: new Rat(5,4), F: new Rat(4,3),
     G: new Rat(3,2), A: new Rat(5,3), B: new Rat(15,8)
 };
 const CHROMATIC_SEMITONE_RAT = new Rat(25,24);
 const SYNTONIC_COMMA_RAT = new Rat(81,80);
+
 function ratForNote(noteName) {
 	let base = JUST_INTONATION_RAT[noteName[0].toUpperCase()];
 	let pluses = noteName.match(/p/g);
@@ -1389,6 +1477,7 @@ function ratForNote(noteName) {
 		.times(SYNTONIC_COMMA_RAT.pow(fineAccidentals))
 	return octaveReduce(rat);
 }
+
 function octaveReduce(rat) {
 	while (rat.gt(TWO_RAT) || rat.eq(TWO_RAT)) {
 		rat = rat.times(TWO_RAT.inverse())
@@ -1428,10 +1517,11 @@ function findPitchClassNeighborhood(noteName) {
 		(home + 8) % 12
 	];
 }
-// must be in the same order:
+
 function findRatNeighborhood(noteName) {
 	let home = ratForNote(noteName);
 	return [
+		// must be in the same order:
 		home,
 		octaveReduce(home.times(new Rat(3,1))),
 		octaveReduce(home.times(new Rat(1,3))),
@@ -1592,13 +1682,15 @@ function compileNotation(notation) {
 				invalidTokens.push(i);
 				continue;
 			}
-			let first = parseInt(parts[0]);
-			let second = parseInt(parts[1]);
-			if (isNaN(first) || isNaN(second)) {
+			let beat = parts[0];
+			let baseBeat = parseInt(beat);
+			let dotCount = beat.endsWith(".") ? beat.match(/\./g).length : 0;
+			let bpm = parseInt(parts[1]);
+			if (isNaN(baseBeat) || isNaN(bpm)) {
 				invalidTokens.push(i);
 				continue;
 			}
-			wholeNotesPerMinute = second/first;
+			wholeNotesPerMinute = bpm * (2 - Math.pow(2, -dotCount)) / baseBeat;
 		} else if (token[0] === "K") {
 			let inner = token.slice(2, -1);
 			let noteInKS;
@@ -1687,11 +1779,12 @@ function compileNotation(notation) {
 			let noteLengthMs = noteLengthMinutes * 60000;
 			noteLengthMs *= (2 - Math.pow(2, -dots.length));
 			let breakFactor =
-				slur || noteLetter === "R" ? 1 :
+				slur || noteLetter === "R" ? 0 :
 				noteLetter === "X" ? NOISE_BREAK :
 				NOTE_BREAK;
+			let breakLength = Math.min(BREAK_MAX_MS, noteLengthMs * breakFactor);
 			let startTime = cursor;
-			let endTime = cursor + (noteLengthMs * breakFactor);
+			let endTime = cursor + (noteLengthMs - breakLength);
 
 			if (noteLetter !== "O") {
 				cursor += noteLengthMs;
@@ -1790,7 +1883,7 @@ function findBounds(anchor, floating) {
 }
 
 function chooseWaveform(instrumentLetter) {
-	return !instrumentLetter ? GLOBAL.waveform : INSTRUMENT_LETTERS[instrumentLetter];
+	return !instrumentLetter ? PLAYBACK_STATE.waveform : INSTRUMENT_LETTERS[instrumentLetter];
 }
 
 // `compiled` is an array of notes given as 8-element arrays [0:startTime, 1:endTime, 2:frequency, 3:noteName, 4:tokenIndex, 5:notationStart, 6:notationEnd, 7:forcedInstrument]
@@ -1814,7 +1907,7 @@ function play(compiled, cursorPosition) {
 	}
 	let playbackStartTime = cursorNote ? cursorNote[0] : 0;
 	let lastEndTime = 0;
-	if (GLOBAL.recording) {
+	if (PLAYBACK_STATE.recording) {
 		AUDIO.recorder.start();
 	}
 	let tiedGroup = [];
@@ -1838,27 +1931,28 @@ function play(compiled, cursorPosition) {
 			endTime === nextNote[0] && // start time of next note
 			frequency === nextNote[2] &&
 			noteName === nextNote[3] &&
-			!!forcedInstrument === !!nextNote[7];
+			(forcedInstrument || "") === (nextNote[7] || "");
 		// If the current note is part of a tie, its timeout should do highlighting but no sound.
 		let isInTie = tiedToNext || tiedGroup.length;
 
-		GLOBAL.timeouts.push(createNoteTimeout(startTime-playbackStartTime, frequency, duration, noteName, tokenIndex, forcedInstrument, !isInTie, true));
+		PLAYBACK_STATE.timeouts.push(createNoteTimeout(startTime-playbackStartTime, frequency, duration, noteName, tokenIndex, forcedInstrument, !isInTie, true));
 
 		if (!tiedToNext && tiedGroup.length) {
 			// But if the current note is the last in the tied group, also set a timeout that does sound (for the entire duration of the tie) but no highlighting.
 			let startTimeOfGroup = tiedGroup[0][0];
 			let durationOfGroup = endTime - startTimeOfGroup;
 			tiedGroup = [];
-			GLOBAL.timeouts.push(createNoteTimeout(startTimeOfGroup-playbackStartTime, frequency, durationOfGroup, noteName, tokenIndex, forcedInstrument, true, false));
+			PLAYBACK_STATE.timeouts.push(createNoteTimeout(startTimeOfGroup-playbackStartTime, frequency, durationOfGroup, noteName, tokenIndex, forcedInstrument, true, false));
 		}
 		if (tiedToNext) {
 			tiedGroup.push(note);
 		}
 	}
-	GLOBAL.timeouts.push(setTimeout(function(){
-		document.getElementById("playButton").innerText = "▶️";
-		GLOBAL.playing = false;
-		if (GLOBAL.recording) {
+	PLAYBACK_STATE.timeouts.push(setTimeout(function(){
+		ELEMENTS.playButton.innerText = "▶️";
+		PLAYBACK_STATE.playing = false;
+		ELEMENTS.playControls.classList.remove("playing");
+		if (PLAYBACK_STATE.recording) {
 			stopRecording();
 		}
 	}, lastEndTime-playbackStartTime));
@@ -1875,16 +1969,16 @@ function createNoteTimeout(timeoutStartFromNow, frequency, duration, noteName, t
 			noteName === "X" ? noiseTone() :
 			tone(frequency, chooseWaveform(forcedInstrument));
 		if (oscillator) {
-			GLOBAL.tones[tokenIndex] = oscillator;
+			PLAYBACK_STATE.tones[tokenIndex] = oscillator;
 		}
-		GLOBAL.timeouts.push(setTimeout(function(){
+		PLAYBACK_STATE.timeouts.push(setTimeout(function(){
 			if (doHighlights) {
 				deactivateCell(noteName);
 				setHighlighting(tokenIndex, 0);
 			}
 			if (oscillator) {
 				oscillator.stop();
-				delete GLOBAL.tones[tokenIndex];
+				delete PLAYBACK_STATE.tones[tokenIndex];
 			}
 		}, duration));
 	}, timeoutStartFromNow);
@@ -1899,16 +1993,17 @@ function copy(array) {
 }
 
 function stop() {
-	GLOBAL.playing = false;
-	document.getElementById("playButton").innerText = "▶️";
-	for (let i=0; i<GLOBAL.timeouts.length; i++) {
-		clearTimeout(GLOBAL.timeouts[i]);
+	PLAYBACK_STATE.playing = false;
+	ELEMENTS.playButton.innerText = "▶️";
+	ELEMENTS.playControls.classList.remove("playing");
+	for (let i=0; i<PLAYBACK_STATE.timeouts.length; i++) {
+		clearTimeout(PLAYBACK_STATE.timeouts[i]);
 	}
-	for (let t in GLOBAL.tones) {
-		GLOBAL.tones[t].stop();
+	for (let t in PLAYBACK_STATE.tones) {
+		PLAYBACK_STATE.tones[t].stop();
 	}
-	GLOBAL.timeouts = [];
-	GLOBAL.tones = {};
+	PLAYBACK_STATE.timeouts = [];
+	PLAYBACK_STATE.tones = {};
 	let actives = copy(document.getElementsByClassName("active"));
 	for (let j=0; j<actives.length; j++) {
 		if (actives[j]) {
@@ -1918,28 +2013,32 @@ function stop() {
 			}
 		}
 	}
-	if (GLOBAL.recording) {
+	if (PLAYBACK_STATE.recording) {
 		stopRecording();
 	}
 }
 
 function startRecording() {
-	GLOBAL.recording = true;
-	playSong();
-	ELEMENTS.recordButton.style.display = "none";
-	ELEMENTS.recordIndicator.style.display = null;
+	if (!PLAYBACK_STATE.playing) {
+		PLAYBACK_STATE.recording = true;
+		playSong();
+		ELEMENTS.recordButton.style.display = "none";
+		ELEMENTS.recordIndicator.style.display = null;
+	}
 }
 
 function stopRecording() {
-	AUDIO.recorder.stop();
-	GLOBAL.recording = false;
-	ELEMENTS.recordButton.style.display = null;
-	ELEMENTS.recordIndicator.style.display = "none";
+	setTimeout(function(){
+		AUDIO.recorder.stop();
+		PLAYBACK_STATE.recording = false;
+		ELEMENTS.recordButton.style.display = null;
+		ELEMENTS.recordIndicator.style.display = "none";
+	}, FADEOUT_MS);
 }
 
 function playSong() {
-	if (!GLOBAL.playing) {
-		document.getElementById("playButton").innerText = "⏹";
+	if (!PLAYBACK_STATE.playing) {
+		ELEMENTS.playButton.innerText = "⏹";
 		let textarea = document.getElementById("song");
 		let songNotation = textarea.value;
 		let cursorPosition = textarea.selectionStart;
@@ -1950,12 +2049,271 @@ function playSong() {
 		let dissonances = computeDissonances(songCompiled);
 		displayDissonances(dissonances);
 		play(songCompiled, cursorPosition);
-		GLOBAL.playing = true;
+		ELEMENTS.playControls.classList.add("playing");
+		PLAYBACK_STATE.playing = true;
 	} else {
 		stop();
 	}
 }
-</script>
 
+
+// -----
+// Encoding/decoding:
+
+const ALPHABET_CODE = {
+	"{": 	"101101111",
+	"}": 	"10101001000010",
+	"A": 	"10111",
+	"B": 	"11100",
+	"C": 	"11101",
+	"D": 	"11010",
+	"E": 	"11011",
+	"F": 	"11000",
+	"G": 	"11001",
+	"R": 	"1010101",
+	"O": 	"1010110",
+	"X": 	"1010111",
+	"#": 	"101101010",
+	"b": 	"101101011",
+	"@": 	"101101100",
+	"+": 	"101101101",
+	"o": 	"101101000",
+	"-": 	"101101001",
+	"'": 	"111110",
+	",": 	"111111",
+	"0": 	"10101001001",
+	"1": 	"111100",
+	"2": 	"10000",
+	"3": 	"10101000",
+	"4": 	"10001",
+	"5": 	"101010010001111",
+	"6": 	"10010",
+	"7": 	"10101001000000",
+	"8": 	"10011",
+	"9": 	"10101001000001",
+	".": 	"101100",
+	"~": 	"101101110",
+	"[": 	"10100010",
+	"/": 	"1010000",
+	"]": 	"10100011",
+	"|": 	"101001",
+	"T": 	"10101001011",
+	"K": 	"10101001100",
+	"(": 	"10101001101",
+	")": 	"10101001110",
+	"=": 	"10101001111",
+	"$": 	"101010010001000",
+	"s": 	"101010010001001",
+	"t": 	"101010010001100",
+	"q": 	"101010010001101",
+	"p": 	"101010010001010",
+	"u": 	"101010010001011",
+	"w": 	"101010010001110",
+	" ": 	"0",
+	"\n": 	"111101",
+	"\t": 	"10101001000011",
+	"": 	"10101001010" // reserved for new symbols
+};
+const ALPHABET_CODE_INV = (function(){
+	let result = {};
+	for (symbol in ALPHABET_CODE) {
+		result[ALPHABET_CODE[symbol]] = symbol;
+	}
+	return result;
+})();
+
+// vibe-coded:
+function extractUTF(bits, startIndex) {
+    if (startIndex >= bits.length) {
+        throw new Error("Start index out of bounds");
+    }
+    let pos = startIndex;
+    // Determine UTF-8 byte length from leading bits (including the terminating 0)
+    let leadingOnes = 0;
+    while (pos < bits.length && bits[pos] === 1 && leadingOnes < 5) {
+        leadingOnes++;
+        pos++;
+    }
+
+    let bytesNeeded;
+    if (leadingOnes === 0) {
+        // 0xxxxxxx -> 1 byte (ASCII)
+        bytesNeeded = 1;
+    } else if (leadingOnes >= 2 && leadingOnes <= 4) {
+        // 110xxxxx -> 2, 1110xxxx -> 3, 11110xxx -> 4
+        bytesNeeded = leadingOnes;
+    } else {
+        throw new Error("Invalid UTF-8 starting byte (overlong or invalid prefix)");
+    }
+
+    let totalBits = bytesNeeded * 8;
+    if (startIndex+totalBits > bits.length) {
+        throw new Error("Not enough bits for complete UTF-8 character");
+    }
+
+    let charBits = bits.slice(startIndex, startIndex + totalBits);
+    let bytes = [];
+    for (let i=0; i<bytesNeeded; i++) {
+        let b = 0;
+        for (let j=0; j<8; j++) {
+            b = (b << 1) | charBits[i*8 + j];
+        }
+        bytes.push(b);
+    }
+
+    let character = new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
+    return {
+        character: character,
+        size: totalBits
+    };
+}
+
+function bytesToBits(bytes) {
+    let bits = [];
+    for (let i=0; i<bytes.length; i++) {
+    	let byte = bytes[i];
+        for (let j=7; j>=0; j--) {
+            bits.push((byte >> j) & 1);
+        }
+    }
+    return bits;
+}
+
+function bitsToBytes(bits) {
+	// bits.length must be a multiple of 8
+	let bytes = new Uint8Array(bits.length/8);
+	for (let i=0; i<bits.length; i+=8) {
+		bytes[i/8] = bits[i]*128 + bits[i+1]*64 + bits[i+2]*32 + bits[i+3]*16 
+					+ bits[i+4]*8 + bits[i+5]*4 + bits[i+6]*2 + bits[i+7]*1;
+	}
+	return bytes;
+}
+
+function encode(songText) {
+	let bits = [0,0,0];
+	let commentingLevel = 0;
+	let charArray = Array.from(songText);
+	for (let i=0; i<charArray.length; i++) {
+		let cha = charArray[i];
+		let charEncoding;
+		if (commentingLevel) {
+			charEncoding = bytesToBits(new TextEncoder().encode(cha));
+		} else {
+			if (!ALPHABET_CODE[cha]) {
+				return false;
+			}
+			charEncoding = ALPHABET_CODE[cha].split("").map(x => parseInt(x));
+		}
+		for (let j=0; j<charEncoding.length; j++) {
+			bits.push(charEncoding[j]);
+		}
+		if (cha === "{") {
+			commentingLevel++;
+		} else if (cha === "}" && commentingLevel) {
+			commentingLevel--;
+		}
+	}
+	let paddingCount = (8-((bits.length)%8))%8
+	for (let j=0; j<paddingCount; j++) {
+		bits.push(1);
+	}
+	let paddingCountBits = [
+		(paddingCount&4) >> 2,
+		(paddingCount&2) >> 1,
+		(paddingCount&1) >> 0
+	];
+	// prepend padding count:
+	bits[0] = paddingCountBits[0];
+	bits[1] = paddingCountBits[1];
+	bits[2] = paddingCountBits[2];
+
+	return btoa(Array.from(bitsToBytes(bits), (byte) => String.fromCodePoint(byte)).join(""))
+		.replaceAll("+","-")
+		.replaceAll("/","_")
+		.replaceAll("=","");
+}
+
+function decode(encoded) {
+	let bits = bytesToBits(
+		Array.from(
+			atob(encoded.replaceAll("-","+").replaceAll("_","/")),
+			c => c.charCodeAt(0)
+		)
+	);
+  	let paddingCount = 4*bits[0] + 2*bits[1] + 1*bits[2];
+  	let latest = "";
+  	let commentingLevel = 0;
+  	let decoded = "";
+  	for (let i=3; i<bits.length-paddingCount; i++) {
+  		let next;
+  		if (commentingLevel) {
+  			let extracted = extractUTF(bits, i);
+  			next = extracted.character;
+  			i += (extracted.size-1);
+  		} else {
+  			latest += bits[i];
+  			next = ALPHABET_CODE_INV[latest];
+  			if (next) {
+  				latest = "";
+  			}
+  		}
+  		if (next) {
+			if (next === "{") {
+				commentingLevel++;
+			} else if (next === "}" && commentingLevel) {
+				commentingLevel--;
+			}
+			decoded += next;
+		}
+  	}
+  	return decoded;
+}
+
+function shareLink() {
+	if (!PLAYBACK_STATE.playing) {
+		let encoded = encode(ELEMENTS.song.value);
+		if (!encoded) {
+			alert("Song contains syntax errors; fix these before sharing");
+		} else {
+			window.location.hash = encoded;
+			navigator.clipboard.writeText(window.location.href);
+			ELEMENTS.copiedTooltip.classList.add("visible");
+			setTimeout(function(){
+				ELEMENTS.copiedTooltip.classList.remove("visible");
+			}, 1000);
+		}
+	}
+}
+
+function refreshHash() {
+	let hash = window.location.hash;
+	if (hash && hash.length>1) {
+		let hashSlice = hash.slice(1);
+		try {
+			let decoded = decode(hashSlice);
+			if (ELEMENTS.selector.getElementsByTagName("option")[0].value !== SHARED_SONG_OPTION) {
+				let option = document.createElement("option");
+				option.value = SHARED_SONG_OPTION;
+				option.innerText = "(Shared from link)";
+				ELEMENTS.selector.prepend(option);
+			}
+			ELEMENTS.selector.selectedIndex = 0;
+			ELEMENTS.song.value = decoded;
+			sharedSongText = decoded;
+			sharedSongEncoding = hashSlice;
+			refreshHighlights();
+			skipToStart();
+		} catch(e) {
+			console.log("Decoding error:", e);
+			window.location.hash = "";
+			alert("Invalid link!");
+		}
+	}
+}
+
+document.body.onload = refreshHash;
+window.onhashchange = refreshHash;
+
+</script>
 </body>
 </html>
