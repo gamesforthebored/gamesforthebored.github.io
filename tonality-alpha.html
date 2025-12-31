@@ -1221,16 +1221,16 @@ function skipToStart() {
 }
 
 const SHARED_SONG_OPTION = "shared";
-let sharedSongText = "";
-let sharedSongEncoding = "";
+let sharedSongContent = "";
+let sharedSongKey = "";
 
 function setEditor(element, keepHash) {
 	let value = element.value;
 	if (value) {
 		let string;
 		if (value === SHARED_SONG_OPTION) {
-			string = sharedSongText;
-			window.location.hash = sharedSongEncoding;
+			string = sharedSongContent;
+			window.location.hash = sharedSongKey;
 		} else {
 			string = document.getElementById("string_" + value).innerText;
 			if (!keepHash && window.location.hash && window.location.hash.length>1) {
@@ -2058,7 +2058,7 @@ function playSong() {
 
 
 // -----
-// Encoding/decoding:
+// Link sharing:
 
 const ALPHABET_CODE = {
 	"{": 	"101101111",
@@ -2285,26 +2285,111 @@ function shareLink() {
 	}
 }
 
+function fetch(url, callback) {
+	let xhr = new XMLHttpRequest();
+	xhr.open("GET", url);
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState === 4) {
+			callback(xhr);
+		}
+	};
+	xhr.send();
+}
+
+function fetchGist(gistID, callback) {
+	fetch("https://api.github.com/gists/" + gistID, function(xhr) {
+		if (xhr.status === 200 || xhr.status === 304) {
+			let response = JSON.parse(xhr.responseText);
+			// we only care about the first file
+			let file = response.files[Object.keys(response.files)[0]];
+			if (file && file.content) {
+				callback(file.content);
+				return;
+			} else {
+				console.log("github unexpected", xhr);
+			}
+		} else if (xhr.status === 403 || xhr.status === 404) {
+			console.log("github 4xx", xhr);
+		} else {
+			console.log("github error", xhr);
+		}
+		callback("{ Error: Could not fetch song from GitHub Gist. Make sure the song is available at https://gist.github.com/" + gistID + " }");
+	});
+}
+
+function fetchPastebin(pastebinID, callback) {
+	fetch("https://pastebin.com/raw/" + pastebinID, function(xhr) {
+		if (xhr.status === 200 || xhr.status === 304) {
+			let response = xhr.responseText;
+			if (response) {
+				callback(response);
+				return;
+			} else {
+				console.log("pastebin empty", xhr);
+			}
+		} else if (xhr.status === 403 || xhr.status === 404) {
+			console.log("pastebin 4xx", xhr);
+		} else {
+			console.log("pastebin error", xhr);
+		}
+		callback("{ Error: Could not fetch song from Pastebin. Make sure the song is available at https://pastebin.com/" + pastebinID + " }");
+	});
+}
+
+function displayFetchedContent(optionLabel, key, content) {
+	let firstOption = ELEMENTS.selector.getElementsByTagName("option")[0];
+	if (firstOption.value === SHARED_SONG_OPTION) {
+		firstOption.innerText = optionLabel;
+	} else {
+		let option = document.createElement("option");
+		option.value = SHARED_SONG_OPTION;
+		option.innerText = optionLabel;
+		ELEMENTS.selector.prepend(option);
+	}
+	ELEMENTS.selector.selectedIndex = 0;
+	ELEMENTS.song.value = content;
+	sharedSongContent = content;
+	sharedSongKey = key;
+	refreshHighlights();
+	skipToStart();
+}
+
 function refreshHash() {
 	let hash = window.location.hash;
 	if (hash && hash.length>1) {
 		let hashSlice = hash.slice(1);
-		try {
-			let decoded = decode(hashSlice);
-			if (ELEMENTS.selector.getElementsByTagName("option")[0].value !== SHARED_SONG_OPTION) {
-				let option = document.createElement("option");
-				option.value = SHARED_SONG_OPTION;
-				option.innerText = "(Shared from link)";
-				ELEMENTS.selector.prepend(option);
+		let hashSplit = hashSlice.split("/");
+		if (hashSplit.length === 1) {
+			// content is encoded directly in the hash
+			try {
+				let decoded = decode(hashSplit[0]);
+				displayFetchedContent("(Shared from link)", hashSlice, decoded);
+			} catch(e) {
+				console.log("Decoding error:", e);
+				window.location.hash = "";
+				alert("Invalid link!");
 			}
-			ELEMENTS.selector.selectedIndex = 0;
-			ELEMENTS.song.value = decoded;
-			sharedSongText = decoded;
-			sharedSongEncoding = hashSlice;
-			refreshHighlights();
-			skipToStart();
-		} catch(e) {
-			console.log("Decoding error:", e);
+		} else if (hashSplit[0].charAt(0) === "g" && hashSplit[1]) {
+			// fetch content from GitHub Gist
+			let label = "(Shared from GitHub Gist)";
+			if (hashSlice === sharedSongKey) {
+				displayFetchedContent(label, hashSlice, sharedSongContent);
+			} else {
+				fetchGist(hashSplit[1], function(content) {
+					displayFetchedContent(label, hashSlice, content);
+				});
+			}
+		} else if (hashSplit[0].charAt(0) === "p") {
+			// fetch content from Pastebin
+			let label = "(Shared from Pastebin)";
+			if (hashSlice === sharedSongKey) {
+				displayFetchedContent(label, hashSlice, sharedSongContent);
+			} else {
+				fetchPastebin(hashSplit[1], function(content) {
+					displayFetchedContent(label, hashSlice, content);
+				});
+			}
+		} else {
 			window.location.hash = "";
 			alert("Invalid link!");
 		}
