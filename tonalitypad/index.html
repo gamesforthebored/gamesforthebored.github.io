@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>Tonality Pad : write and share chiptunes</title>
+<style>
+* {
+	font-family: "Lucida Console", Monaco, monospace;
+}
+body {
+	margin: 0;
+}
+#container {
+	display: flex;
+	width: 100%;
+}
+#frame {
+	width: 820px;
+	min-height: 650px;
+	height: 100vh;
+	border: none;
+}
+#frame.loading {
+	opacity: 0.4;
+}
+#main {
+	/*background-color: aliceblue;*/
+	flex: 1;
+	max-height: calc(100vh - 40px);
+	overflow-y: scroll;
+	padding-top: 8px;
+	padding-right: 8px;
+	border-bottom: 1px dotted black;
+}
+.hidden {
+	display: none;
+}
+.logo {
+	position: relative;
+	width: 180px;
+	height: 28px;
+	line-height: 28px;
+	margin: auto;
+	text-align: center;
+	color: white;
+	background-color: black;
+	font-size: 24px;
+	padding: 4px;
+	font-weight: bold;
+}
+.logo::before, .logo::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	width: 0;
+	border-top: 18px solid transparent;
+	border-bottom: 18px solid transparent;
+}
+.logo::before {
+	right: 100%;
+	border-right: 10.4px solid black;
+}
+.logo::after {
+	left: 100%;
+	width: 0;
+	border-left: 10.4px solid black;
+}
+a.logo {
+	display: block;
+	text-decoration: none;
+}
+#firstLink.loading, #previousLink.loading, #nextLink.loading {
+	pointer-events: none;
+	color: gray;
+}
+#firstLink, #previousLink, #nextLink, #songCommentingLink {
+	display: none;
+}
+#nextLink {
+	text-align: right;
+}
+#firstLink[href], #previousLink[href], #songCommentingLink[href] {
+	display: inline-block;
+}
+#nextLink[href] {
+	display: block;
+}
+#listingTable {
+	width: 100%;
+}
+#listingTable tr:nth-child(odd), #comments .comment:nth-child(odd) {
+	background-color: lightgray;
+}
+#listingTable tr td:first-child {
+	text-align: right;
+	padding-right: 10px;
+	text-wrap: nowrap;
+}
+#listingTable td {
+	padding: 2px;
+}
+.nowrap {
+	text-wrap: nowrap;
+}
+#comments, .comment {
+	padding: 10px;
+}
+.commentBody {
+	word-wrap: break-word;
+	margin-left: 20px;
+}
+.commentBody p {
+	margin-top: 7px;
+	margin-bottom: 7px;
+}
+#footer {
+	position: fixed;
+	bottom: 8px;
+	right: 8px;
+}
+</style>
+</head>
+<body>
+<div id="container">
+
+<iframe src="tonalitypad.html" id="frame" name="frame" title="Tonality Composer" scrolling="no"></iframe>
+
+<div id="main">
+
+<div id="homePage" class="hidden">
+	<div class="logo">Tonality Pad</div>
+	<select id="sortSelector" onchange="setSort()">
+		<option value="sort_">new</option>
+		<option value="sort_popular">popular</option>
+		<option value="sort_active">active</option>
+	</select>
+	<a id="firstLink" onclick="this.classList.add('loading')">&laquo;first</a>
+	<a id="previousLink" onclick="this.classList.add('loading')">&lsaquo;previous</a>
+	<table id="listingTable" cellspacing="0"></table>
+	<a id="nextLink" onclick="this.classList.add('loading')">next&rsaquo;</a>
+</div>
+
+<div id="songPage" class="hidden">
+	<a id="songPageLogo" class="logo" href="#">Tonality Pad</a>
+	<div id="songInfo">
+		<h3 id="songTitle" style="display:inline"></h3><br/>
+		<a id="songCreator" target="_blank"></a> &middot;
+		<span id="songCreatedTime"></span> &middot;
+		<span id="songCommentCount" class="nowrap"></span> &middot;
+		<span id="songVotes" class="nowrap"></span> &middot;
+		<a id="songVoteLink" target="_blank">👍 on GitHub</a>
+	</div>
+	<div id="comments"></div>
+	<a id="songCommentingLink" target="_blank">Make a comment</a>
+</div>
+
+<div id="footer"><a target="_blank" href="https://github.com/gamesforthebored/gamesforthebored.github.io">GitHub Pages</a> <img title="Vanilla JS" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAPBAMAAACB51W8AAAAJFBMVEX/ZgCJjnlmZmb///////////+qqqr////z2JCqqqoAAAD///+yFabeAAAAcUlEQVQokbWSwQ3AIAhFnbbdwG7QEDYgLkDYwLhcUaOhHloufk04+PJIwHA5E+LhyhkifOemlp0g6xFAYL1aAHmCmUp+gZXiAWqdYLJGREBhxAGKWOMCduliTAqSad2eO6hiMa0LpbJ1PP+gd9fe3/MArgg2b0oDyO8AAAAASUVORK5CYII="/></div>
+
+</div>
+
+</div>
+
+<script>
+
+const DATA_REPO = "gamesforthebored/tptest-data";
+//const DATA_REPO = "nodejs/node";
+const API_PREFIX = "https://api.github.com/repos/";
+const SONG_CACHE = {};
+const SORT_OPTIONS = ["", "popular", "active"];
+const ELEMENTS = (function(ids) {
+	let dict = {};
+	ids.forEach(function(id) {dict[id]=document.getElementById(id)});
+	return dict;
+})([
+	"listingTable",
+	"frame",
+	"sortSelector",
+	"homePage",
+	"songPage",
+	"songPageLogo",
+	"firstLink",
+	"previousLink",
+	"nextLink",
+	"songInfo",
+	"songTitle",
+	"songCreator",
+	"songCreatedTime",
+	"issueLink",
+	"songVoteLink",
+	"songCommentingLink",
+	"songCommentCount",
+	"songVotes",
+	"comments"
+]);
+
+function fetch(url, callback) {
+	let xhr = new XMLHttpRequest();
+	xhr.open("GET", url);
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState === 4) {
+			callback(xhr);
+		}
+	};
+	xhr.send();
+}
+
+function fetchListing(sort, page, callback) {
+	fetch(API_PREFIX+DATA_REPO+"/issues?page="+page+"&sort="+sort, function(xhr) {
+		if (xhr.status === 200 || xhr.status === 304) {
+			try {
+				let response = {
+					issues: JSON.parse(xhr.responseText)
+				};
+				let linkHeader = xhr.getResponseHeader("link");
+				if (linkHeader) {
+					let linkHeaderSplit = linkHeader.split(", ");
+					for (let i=0; i<linkHeaderSplit.length; i++) {
+						let linkSubHeader = linkHeaderSplit[i];
+						if (linkSubHeader.endsWith('; rel="next"')) {
+							response.has_next = true;
+						} else if (linkSubHeader.endsWith('; rel="prev"')) {
+							response.has_previous = true;
+						}
+					}
+				}
+				callback(response);
+				return;
+			} catch(e) {
+				console.log("github listing unexpected", e, xhr);
+			}
+		} else if (xhr.status === 403 || xhr.status === 404) {
+			console.log("github listing 4xx", xhr);
+		} else {
+			console.log("github listing error", xhr);
+		}
+		callback(false);
+	});
+}
+
+function fetchIssue(issueId, callback) {
+	fetch(API_PREFIX+DATA_REPO+"/issues/"+issueId, function(xhr) {
+		if (xhr.status === 200 || xhr.status === 304) {
+			try {
+				let response = JSON.parse(xhr.responseText);
+				callback(response);
+				return;
+			} catch(e) {
+				console.log("github issue unexpected", e, xhr);
+			}
+		} else if (xhr.status === 403 || xhr.status === 404) {
+			console.log("github issue 4xx", xhr);
+		} else {
+			console.log("github issue error", xhr);
+		}
+		callback(false);
+	});
+}
+
+function fetchComments(issueId, callback) {
+	fetch(API_PREFIX+DATA_REPO+"/issues/"+issueId+"/comments?per_page=100", function(xhr) {
+		if (xhr.status === 200 || xhr.status === 304) {
+			try {
+				let response = JSON.parse(xhr.responseText);
+				callback(response);
+				return;
+			} catch(e) {
+				console.log("github comments unexpected", e, xhr);
+			}
+		} else if (xhr.status === 403 || xhr.status === 404) {
+			console.log("github comments 4xx", xhr);
+		} else {
+			console.log("github comments error", xhr);
+		}
+		callback(false);
+	});
+}
+
+function encodeRaw(text) {
+	return btoa(
+			Array.from(
+				new TextEncoder().encode(text),
+				(byte) => String.fromCodePoint(byte)
+			).join("")
+		).replaceAll("+","-")
+		.replaceAll("/","_")
+		.replaceAll("=","");
+}
+
+function sanitize(string) {
+	return string
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&apos;");
+}
+
+function formatTimespan(ms) {
+	let seconds = Math.floor(ms / 1000);
+	let minutes = Math.floor(seconds / 60);
+	let hours = Math.floor(minutes / 60);
+	let days = Math.floor(hours / 24);
+	let months = Math.floor(days / 30.436875); // average month length
+	let years = Math.floor(days / 365.25);
+
+	if (years >= 1) return { value: years, unit: "y" };
+	if (months >= 1) return { value: months, unit: "mo" };
+	if (days >= 1) return { value: days, unit: "d" };
+	if (hours >= 1) return { value: hours, unit: "h" };
+	if (minutes >= 1) return { value: minutes, unit: "m" };
+	return { value: seconds, unit: "s" };
+};
+
+function ago(isoTime) {
+	let now = new Date();
+	let date = new Date(isoTime);
+	let diff = now - date; // milliseconds
+	let formatted = formatTimespan(diff);
+	return '<span title="'+isoTime+'">'+formatted.value+formatted.unit+'</span>';
+}
+
+function userLink(username) {
+	return "https://github.com/"
+		+ DATA_REPO
+		+ "/issues?q=state%3Aopen%20author%3A"
+		+ username;
+}
+
+function populateSongInfo(song) {
+	ELEMENTS.songTitle.innerText = song.title;
+	ELEMENTS.songCreator.href = userLink(song.user.login);
+	ELEMENTS.songCreator.innerText = "@" + song.user.login;
+	ELEMENTS.songCreatedTime.innerHTML = ago(song.created_at);
+	ELEMENTS.songCommentCount.innerText = "💬"+song.comments;
+	ELEMENTS.songVotes.innerText = "👍"+song.reactions["+1"];
+	let issueLink = "https://github.com/"+DATA_REPO+"/issues/"+song.number;
+	ELEMENTS.songVoteLink.href = issueLink+"#issue-"+song.id;
+	ELEMENTS.songCommentingLink.href = issueLink;
+	ELEMENTS.frame.src = "tonalitypad.html#raw/";
+	ELEMENTS.frame.src = "tonalitypad.html#raw/" + encodeRaw(song.body);
+	ELEMENTS.songInfo.classList.remove("hidden");
+}
+
+
+function populateComments(comments, op) {
+	ELEMENTS.comments.innerHTML = "";
+	for (let i=0; i<comments.length; i++) {
+		let comment = comments[i];
+		let commentDiv = document.createElement("div");
+		commentDiv.classList.add("comment");
+		commentDiv.innerHTML = 
+			'<span>'
+			+(i+1)
+			+'. <a target="_blank" href="'
+			+userLink(comment.user.login)
+			+'">@'+comment.user.login
+			+'</a>'
+			+(comment.user.login===op ? ' [OP]' : '')
+			+' &middot; '
+			+ago(comment.created_at)
+			+'</span><div class="commentBody">'
+			+sanitize(comment.body).replaceAll("\n", "<br/>")
+			+'</div>';
+		ELEMENTS.comments.appendChild(commentDiv);
+	}
+}
+
+function setSong(songNumber) {
+	let op = void(0);
+	if (SONG_CACHE[songNumber]) {
+		let cached = SONG_CACHE[songNumber];
+		populateSongInfo(cached);
+		op = cached.user.login;
+	} else {
+		ELEMENTS.songInfo.classList.add("hidden");
+	}
+	populateComments([]);
+	fetchComments(songNumber, function(response){
+		if (response) {
+			//console.log("COMMENTS", response)
+			populateComments(response, op);
+		} else {
+			console.log("error");
+		}
+	});
+	fetchIssue(songNumber, function(response){
+		if (response) {
+			if (!SONG_CACHE[songNumber]) {
+				SONG_CACHE[songNumber] = response;
+				populateSongInfo(response);
+			}
+		} else if (!SONG_CACHE[songNumber]) {
+			alert("Song not found! Check that your link is correct, or try again later.");
+		} else {
+			ELEMENTS.comments.innerHTML = "Could not load comments; try again later."
+			console.log("error");
+		}
+	});
+}
+
+function setSort() {
+	let sortValue = ELEMENTS.sortSelector.value.slice(5);
+	window.location.hash = sortValue;
+}
+
+function setupPagination(hasPrevious, hasNext, pageNum, sortType) {
+	ELEMENTS.firstLink.classList.remove("loading");
+	ELEMENTS.previousLink.classList.remove("loading");
+	ELEMENTS.nextLink.classList.remove("loading");
+	if (hasPrevious) {
+		ELEMENTS.firstLink.href = "#" + sortType;
+		if (pageNum>2) {
+			ELEMENTS.previousLink.href = "#" + sortType + "/" + (pageNum-1);
+		} else {
+			ELEMENTS.previousLink.removeAttribute("href");
+		}
+	} else {
+		ELEMENTS.firstLink.removeAttribute("href");
+		ELEMENTS.previousLink.removeAttribute("href");
+	}
+	if (hasNext) {
+		ELEMENTS.nextLink.href = "#" + sortType + "/" + (pageNum+1);
+	} else {
+		ELEMENTS.nextLink.removeAttribute("href");
+	}
+}
+
+function addTableRow(item, useUpdatedTime) {
+	let row = document.createElement("tr");
+	ELEMENTS.listingTable.appendChild(row);
+	let cell1 = document.createElement("td");
+	let cell2 = document.createElement("td");
+	row.appendChild(cell1);
+	row.appendChild(cell2);
+	cell1.innerText = "👍"+item.reactions["+1"];
+	cell2.innerHTML = '<b><a href="#'
+		+ item.number
+		+ '">'
+		+ sanitize(item.title)
+		+ '</a></b> <a target="_blank" href="'
+		+ userLink(item.user.login)
+		+ '">@'
+		+ item.user.login
+		+ '</a>'
+		+ (useUpdatedTime ? '' : ' '+ago(item.created_at))
+		+ (item.comments ? ' <span class="nowrap">💬'+item.comments+'</span>' : '')
+		+ (useUpdatedTime ? ' '+ago(item.updated_at) : '');
+}
+
+function refreshHash() {
+	let hash = window.location.hash;
+	let hashSlice = hash.slice(1);
+	if (!hash || !hashSlice ||
+			hashSlice === "popular" ||
+			hashSlice === "active" ||
+			hashSlice.startsWith("/") ||
+			hashSlice.startsWith("popular/") ||
+			hashSlice.startsWith("active/")) {
+		// Show song listing
+		ELEMENTS.homePage.classList.remove("hidden");
+		ELEMENTS.songPage.classList.add("hidden");
+		let hashSplit = hashSlice.split("/");
+		let sortType = hashSplit[0];
+		let pageNum = hashSplit.length>1 ? parseInt(hashSplit[1]) : 1;
+		
+		ELEMENTS.songPageLogo.href = "#" + hashSlice;
+		ELEMENTS.sortSelector.selectedIndex = SORT_OPTIONS.indexOf(sortType);
+		let sort =
+			sortType === "popular" ? "reactions-%2B1" :
+			sortType === "active" ? "updated" : "created";
+
+		fetchListing(sort, pageNum, function(response) {
+			if (response && response.issues) {
+				setupPagination(response.has_previous, response.has_next, pageNum, sortType);
+				ELEMENTS.listingTable.innerHTML = "";
+				for (let i=0; i<response.issues.length; i++) {
+					let item = response.issues[i];
+					SONG_CACHE[item.number] = item;
+					addTableRow(item, sortType === "active");
+				}
+			} else {
+				ELEMENTS.listingTable.innerText = "Could not reach GitHub! Try again later.";
+			}
+		});
+		if (!hash && !window.location.href.endsWith("#")) {
+			ELEMENTS.frame.src = "tonalitypad.html";
+		}
+	} else {
+		// Show individual song
+		let hashSplit = hashSlice.split("/");
+		if (hashSplit.length === 1 && !isNaN(parseInt(hashSplit[0]))) {
+			ELEMENTS.songPage.classList.remove("hidden");
+			ELEMENTS.homePage.classList.add("hidden");
+			// fetch content from GitHub issue
+			let issueId = parseInt(hashSplit[0]);
+			setSong(issueId);
+		} else {
+			window.location.hash = "";
+			console.log("Invalid link!");
+		}
+	}
+}
+document.body.onload = refreshHash;
+window.onhashchange = refreshHash;
+</script>
+</body>
+</html>
