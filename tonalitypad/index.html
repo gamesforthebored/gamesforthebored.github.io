@@ -32,7 +32,7 @@ body {
 	padding-right: 8px;
 	border-bottom: 1px dotted black;
 }
-.hidden {
+.hidden, #moreCommentsLink.hidden {
 	display: none;
 }
 .logo {
@@ -69,7 +69,7 @@ a.logo {
 	display: block;
 	text-decoration: none;
 }
-#firstLink.loading, #previousLink.loading, #nextLink.loading {
+#firstLink.loading, #previousLink.loading, #nextLink.loading, #moreCommentsLink.loading {
 	pointer-events: none;
 	color: gray;
 }
@@ -113,6 +113,10 @@ a.logo {
 	margin-top: 7px;
 	margin-bottom: 7px;
 }
+#moreCommentsLink {
+	display: block;
+	text-align: center;
+}
 #footer {
 	position: fixed;
 	bottom: 8px;
@@ -151,6 +155,7 @@ a.logo {
 		<a id="songVoteLink" target="_blank">👍 on GitHub</a>
 	</div>
 	<div id="comments"></div>
+	<a id="moreCommentsLink" href="" class="hidden" onclick="moreComments(this); return false;">Load more comments</a>
 	<a id="songCommentingLink" target="_blank">Make a comment</a>
 </div>
 
@@ -167,6 +172,7 @@ const DATA_REPO = "gamesforthebored/tptest-data";
 const API_PREFIX = "https://api.github.com/repos/";
 const SONG_CACHE = {};
 const SORT_OPTIONS = ["", "popular", "active"];
+const COMMENTS_PER_PAGE = 100;
 const ELEMENTS = (function(ids) {
 	let dict = {};
 	ids.forEach(function(id) {dict[id]=document.getElementById(id)});
@@ -190,7 +196,8 @@ const ELEMENTS = (function(ids) {
 	"songCommentingLink",
 	"songCommentCount",
 	"songVotes",
-	"comments"
+	"comments",
+	"moreCommentsLink"
 ]);
 
 function fetch(url, callback) {
@@ -204,25 +211,37 @@ function fetch(url, callback) {
 	xhr.send();
 }
 
+function getPagination(xhr) {
+	let hasPrevious = false;
+	let hasNext = false;
+	let linkHeader = xhr.getResponseHeader("link");
+	if (linkHeader) {
+		let linkHeaderSplit = linkHeader.split(", ");
+		for (let i=0; i<linkHeaderSplit.length; i++) {
+			let linkSubHeader = linkHeaderSplit[i];
+			if (linkSubHeader.endsWith('; rel="next"')) {
+				hasNext = true;
+			} else if (linkSubHeader.endsWith('; rel="prev"')) {
+				hasPrevious = true;
+			}
+		}
+	}
+	return {
+		has_previous: hasPrevious,
+		has_next: hasNext
+	};
+}
+
 function fetchListing(sort, page, callback) {
 	fetch(API_PREFIX+DATA_REPO+"/issues?page="+page+"&sort="+sort, function(xhr) {
 		if (xhr.status === 200 || xhr.status === 304) {
 			try {
+				let pagination = getPagination(xhr);
 				let response = {
-					issues: JSON.parse(xhr.responseText)
+					issues: JSON.parse(xhr.responseText),
+					has_previous: pagination.has_previous,
+					has_next: pagination.has_next,
 				};
-				let linkHeader = xhr.getResponseHeader("link");
-				if (linkHeader) {
-					let linkHeaderSplit = linkHeader.split(", ");
-					for (let i=0; i<linkHeaderSplit.length; i++) {
-						let linkSubHeader = linkHeaderSplit[i];
-						if (linkSubHeader.endsWith('; rel="next"')) {
-							response.has_next = true;
-						} else if (linkSubHeader.endsWith('; rel="prev"')) {
-							response.has_previous = true;
-						}
-					}
-				}
 				callback(response);
 				return;
 			} catch(e) {
@@ -256,11 +275,18 @@ function fetchIssue(issueId, callback) {
 	});
 }
 
-function fetchComments(issueId, callback) {
-	fetch(API_PREFIX+DATA_REPO+"/issues/"+issueId+"/comments?per_page=100", function(xhr) {
+function fetchComments(issueId, pageNum, callback) {
+	fetch(API_PREFIX+DATA_REPO
+			+"/issues/"+issueId
+			+"/comments?per_page="+COMMENTS_PER_PAGE
+			+"&page="+pageNum, function(xhr) {
 		if (xhr.status === 200 || xhr.status === 304) {
 			try {
-				let response = JSON.parse(xhr.responseText);
+				let pagination = getPagination(xhr);
+				let response = {
+					comments: JSON.parse(xhr.responseText),
+					has_next: pagination.has_next
+				};
 				callback(response);
 				return;
 			} catch(e) {
@@ -342,15 +368,17 @@ function populateSongInfo(song) {
 }
 
 
-function populateComments(comments, op) {
-	ELEMENTS.comments.innerHTML = "";
+function populateComments(comments, op, existingComments) {
+	if (!existingComments) {
+		ELEMENTS.comments.innerHTML = "";
+	}
 	for (let i=0; i<comments.length; i++) {
 		let comment = comments[i];
 		let commentDiv = document.createElement("div");
 		commentDiv.classList.add("comment");
 		commentDiv.innerHTML = 
 			'<span>'
-			+(i+1)
+			+(i+1+existingComments)
 			+'. <a target="_blank" href="'
 			+userLink(comment.user.login)
 			+'">@'+comment.user.login
@@ -365,6 +393,42 @@ function populateComments(comments, op) {
 	}
 }
 
+function setupCommentPagination(songNumber, nextPageNum, op) {
+	ELEMENTS.moreCommentsLink.classList.remove("hidden");
+	ELEMENTS.moreCommentsLink.setAttribute("data-song", songNumber);
+	ELEMENTS.moreCommentsLink.setAttribute("data-page", nextPageNum);
+	ELEMENTS.moreCommentsLink.setAttribute("data-op", op);
+}
+
+function removeCommentPagination() {
+	ELEMENTS.moreCommentsLink.classList.add("hidden");
+	ELEMENTS.moreCommentsLink.removeAttribute("data-song");
+	ELEMENTS.moreCommentsLink.removeAttribute("data-page");
+	ELEMENTS.moreCommentsLink.removeAttribute("data-op");
+}
+
+function moreComments(element) {
+	if (element.dataset.song && element.dataset.page) {
+		element.classList.add("loading");
+		let songNum = parseInt(element.dataset.song);
+		let nextPageNum = parseInt(element.dataset.page);
+		let op = element.dataset.op || "";
+		fetchComments(songNum, nextPageNum, function(response){
+			element.classList.remove("loading");
+			if (response && response.comments) {
+				populateComments(response.comments, op, COMMENTS_PER_PAGE*(nextPageNum-1));
+				if (response.has_next) {
+					setupCommentPagination(songNum, nextPageNum+1, op);
+				} else {
+					removeCommentPagination();
+				}
+			} else {
+				console.log("error");
+			}
+		});
+	}
+}
+
 function setSong(songNumber) {
 	let op = void(0);
 	if (SONG_CACHE[songNumber]) {
@@ -375,10 +439,13 @@ function setSong(songNumber) {
 		ELEMENTS.songInfo.classList.add("hidden");
 	}
 	populateComments([]);
-	fetchComments(songNumber, function(response){
-		if (response) {
-			//console.log("COMMENTS", response)
-			populateComments(response, op);
+	removeCommentPagination();
+	fetchComments(songNumber, 1, function(response){
+		if (response && response.comments) {
+			populateComments(response.comments, op, 0);
+			if (response.has_next) {
+				setupCommentPagination(songNumber, 2, op||"");
+			}
 		} else {
 			console.log("error");
 		}
