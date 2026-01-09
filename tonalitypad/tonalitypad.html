@@ -304,7 +304,7 @@ const VOLUME_ADJUSTMENT = {
 	superpulse: 4/3,
 	sawtooth: 1
 };
-const NOTE_REGEX = "([ABCDEFGROX])([#b@+o-]*)([',]*)([0123456789]*)([.]*)(~?)";
+const NOTE_REGEX = "([ABCDEFGROX])([#b@+o-]*)([',]*)([0123456789]*)([.]*)(:+|~?)";
 const WHITE_NOTES = {C:0, D:2, E:4, F:5, G:7, A:9, B:11};
 const JUST_INTONATION = {C:1, D:9/8, E:5/4, F:4/3, G:3/2, A:5/3, B:15/8};
 const CHROMATIC_SEMITONE = 25/24;
@@ -994,6 +994,7 @@ function compileNotation(notation) {
 			// All values are now as of the last line of the polyphony, even if the lines were not the same length, which means that the next note may start while some of the lines are still playing.
 		} else {
 			let parsedNote = token.match(NOTE_REGEX);
+			//console.log("!!!!", token, parsedNote);
 			if (!parsedNote || parsedNote.length !== 7 || parsedNote.slice(1).join("") !== token) {
 				invalidTokens.push(i);
 				continue;
@@ -1003,7 +1004,7 @@ function compileNotation(notation) {
 			let octaveMarkers = parsedNote[3] || "";
 			let noteLength = parsedNote[4] || "";
 			let dots = parsedNote[5] || "";
-			let slur = parsedNote[6] || "";
+			let articulation = parsedNote[6] || "";
 
 			if (noteLength && noteLength[0] === "0") {
 				invalidTokens.push(i);
@@ -1012,20 +1013,22 @@ function compileNotation(notation) {
 			if (noteLength) {
 				lastNoteLength = parseInt(noteLength);
 			}
+			let staccatos = articulation.match(/:/g);
+			staccatos = staccatos ? staccatos.length : 0;
 
-			let noteLengthMinutes = 1/(wholeNotesPerMinute*lastNoteLength);
-			let noteLengthMs = noteLengthMinutes * 60000;
-			noteLengthMs *= (2 - Math.pow(2, -dots.length));
+			let noteLengthMsUndotted = 60000/(wholeNotesPerMinute*lastNoteLength);
+			let totalLengthMs = noteLengthMsUndotted * (2 - Math.pow(2, -dots.length));
+			let activeLengthMs = staccatos ? noteLengthMsUndotted * Math.pow(2, -staccatos): totalLengthMs;
 			let breakFactor =
-				slur || noteLetter === "R" ? 0 :
+				articulation === "~" || noteLetter === "R" ? 0 :
 				noteLetter === "X" ? NOISE_BREAK :
 				NOTE_BREAK;
-			let breakLength = Math.min(BREAK_MAX_MS, noteLengthMs * breakFactor);
+			let breakLengthMs = Math.min(BREAK_MAX_MS, activeLengthMs * breakFactor);
 			let startTime = cursor;
-			let endTime = cursor + (noteLengthMs - breakLength);
+			let endTime = cursor + (activeLengthMs - breakLengthMs);
 
 			if (noteLetter !== "O") {
-				cursor += noteLengthMs;
+				cursor += totalLengthMs;
 			}
 
 			if (noteLetter === "O") {
