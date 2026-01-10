@@ -263,6 +263,8 @@ span.narrow {
 		<span class="blockedWhilePlaying" onclick="startRecording()" id="recordButton">⏺</span>
 		<span id="recordIndicator" style="display:none" title="Download audio file once playback stops">•</span>
 		<button style="cursor: pointer; font-size: 14pt" onclick="shareOnGithub()">Share on GitHub</button>
+		<span class="blockedWhilePlaying" onclick="shareLink()" id="shareLinkButton">#️⃣</span>
+		<span id="copiedTooltip">Copied link</span>
 	</div>
 	<div style="float:right; text-align: right" id="waveforms">
 		<span onclick="setWaveform(this)" id="w_sine">◯</span>
@@ -314,11 +316,11 @@ const ELEMENTS = {
 	highlights: document.getElementById("highlights"),
 	song: document.getElementById("song"),
 	waveforms: document.getElementById("waveforms"),
-	//selector: document.getElementById("selector"),
 	playControls: document.getElementById("playControls"),
 	playButton: document.getElementById("playButton"),
 	recordButton: document.getElementById("recordButton"),
 	recordIndicator: document.getElementById("recordIndicator"),
+	shareLinkButton: document.getElementById("shareLinkButton"),
 	copiedTooltip: document.getElementById("copiedTooltip")
 };
 // Global state representing the current playback:
@@ -483,7 +485,70 @@ const SHARED_SONG_OPTION = "shared";
 let sharedSongContent = "";
 let sharedSongKey = "";
 
-const WELCOME_TEXT = "{Welcome to Tonality Pad!}\nC D E F G A B C\n{hello world}";
+// TODO: Finish writing this
+const WELCOME_TEXT = `{Welcome to Tonality Pad!}
+
+C D E F G A B C {Regular notes}
+
+C C, C' C D E E, E D C {Use , or ' to jump down or up an octave}
+
+C C'' C,,, A' B {...or more octaves}
+
+C4 C8 D E F G2 C,4 D16 E F8 D B C1 {Rhythm: 1 = whole note, 2 = half note, etc.; unspecified = same as previous note}
+
+A4 B R2 C4 D E8 F R G A1 {R for rests}
+
+C4. B8 A4 G E2 D {Dotted rhythm}
+
+[ / / ] {Multiple notes at once}
+
+D4 D8 F# A F A B B4 Bb A2 {Sharp (#) and flat (b)}
+
+F4 F B B@ B F | F1 {Accidentals continue until canceled by natural sign (@) or barline}
+
+{Fine pitch adjustments with + and -}
+
+{These can be used to improve harmony:}
+{Bad harmony gets marked in gray}
+{Better!}
+
+{Cancel fine adjustments with o or barline}
+
+{Key signature}
+
+{Set tempo ()}
+
+{Slurred or staccato articulation}
+
+{Reset the octave/rhythm context with O}
+
+{...or set a new context by modifying O}
+
+X8 X16 X X R X R X8 X16 X X R X R R2 {X for a noise sound}
+
+{Force a particular instrument with $ plus a letter:}
+$s C D {s for Sine wave ◯}
+$t E F {t for Triangle wave △}
+$q G A {q for sQuare wave ▢}
+$p B C {p for Pulse wave ⬨}
+$u G E {u for sUperpulse wave ✧}
+$w D C {w for saWtooth wave ☆}
+$ G A B C {Lone $ sign returns to the default instrument set by the buttons above}
+
+{In summary, make sure to get the order right:}
+Bb-''2.~
+{
+  1. Note letter: B
+  2. Accidental: b
+  3. Fine adjustment: -
+  4. Octave shift: ''
+  5. Note length: 2
+  6. Length dots: .
+  7. Articulation: ~
+}
+
+{About the hexagonal grid: This is the "Tonnetz" (Tone Network), first devised by Leonard Euler to depict pitch ratios involving the numbers 2, 3, and 5. While factors of 2 (octaves) are ignored, factors of 3 ("perfect fifths") are represented by moving horizontally across the grid, and factors of 5 ("major thirds") by moving along the "1-o'clock / 7-o'clock" axis. Thus, adjacent notes will form nice harmonies, while distant notes will sound bad together. Sharps/flats shift the pitch by 25:24, while pluses/minuses tweak it by the smaller interval of 81:80 (the so-called "syntonic comma"). With this notation we can represent all ratios involving 2, 3, and 5.}`;
+
 ELEMENTS.song.value = WELCOME_TEXT;
 refreshHighlights();
 
@@ -1018,7 +1083,7 @@ function compileNotation(notation) {
 
 			let noteLengthMsUndotted = 60000/(wholeNotesPerMinute*lastNoteLength);
 			let totalLengthMs = noteLengthMsUndotted * (2 - Math.pow(2, -dots.length));
-			let activeLengthMs = staccatos ? noteLengthMsUndotted * Math.pow(2, -staccatos): totalLengthMs;
+			let activeLengthMs = totalLengthMs * Math.pow(2, -staccatos);
 			let breakFactor =
 				articulation === "~" || noteLetter === "R" ? 0 :
 				noteLetter === "X" ? NOISE_BREAK :
@@ -1353,7 +1418,10 @@ const ALPHABET_CODE = {
 	" ": 	"0",
 	"\n": 	"111101",
 	"\t": 	"10101001000011",
-	"": 	"10101001010" // reserved for new symbols
+	"f": 	"1010100101001",
+	"m": 	"1010100101010",
+	":": 	"1010100101011",
+	"": 	"1010100101000", // reserved for new symbols
 };
 const ALPHABET_CODE_INV = (function(){
 	let result = {};
@@ -1526,6 +1594,38 @@ function shareLink() {
 	}
 }
 
+function fetch(url, callback) {
+	let xhr = new XMLHttpRequest();
+	xhr.open("GET", url);
+	xhr.onreadystatechange = function () {
+		if (xhr.readyState === 4) {
+			callback(xhr);
+		}
+	};
+	xhr.send();
+}
+
+function fetchGist(gistID, callback) {
+	fetch("https://api.github.com/gists/" + gistID, function(xhr) {
+		if (xhr.status === 200 || xhr.status === 304) {
+			let response = JSON.parse(xhr.responseText);
+			// we only care about the first file
+			let file = response.files[Object.keys(response.files)[0]];
+			if (file && file.content) {
+				callback(file.content);
+				return;
+			} else {
+				console.log("github unexpected", xhr);
+			}
+		} else if (xhr.status === 403 || xhr.status === 404) {
+			console.log("github 4xx", xhr);
+		} else {
+			console.log("github error", xhr);
+		}
+		callback("{ Error: Could not fetch song from GitHub Gist. Make sure the song is available at https://gist.github.com/" + gistID + " }");
+	});
+}
+
 function displayFetchedContent(key, content) {
 	ELEMENTS.song.value = content;
 	sharedSongContent = content;
@@ -1548,6 +1648,15 @@ function refreshHash() {
 				console.log("Decoding error:", e);
 				window.location.hash = "";
 				alert("Invalid link!");
+			}
+		} else if (hashSplit[0].charAt(0) === "g" && hashSplit[1]) {
+			// fetch content from GitHub Gist
+			if (hashSlice === sharedSongKey) {
+				displayFetchedContent(hashSlice, sharedSongContent);
+			} else {
+				fetchGist(hashSplit[1], function(content) {
+					displayFetchedContent(hashSlice, content);
+				});
 			}
 		} else if (hashSplit[0] === "raw") {
 			// uncompressed base64
@@ -1584,6 +1693,11 @@ function shareOnGithub() {
 	url.toString();
 	window.open(url.toString(), "_blank", "noopener,noreferrer");
 
+}
+
+if (window !== window.parent) {
+	// Hide permalink button when embedded in iframe
+	ELEMENTS.shareLinkButton.style = "display: none";
 }
 
 </script>
