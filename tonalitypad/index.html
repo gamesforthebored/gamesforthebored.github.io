@@ -148,18 +148,18 @@ a.logo {
 	<a id="songPageLogo" class="logo" href="#">Tonality Pad</a>
 	<div id="songInfo">
 		<h3 id="songTitle" style="display:inline"></h3><br/>
-		<a id="songCreator" target="_blank"></a> &middot;
+		<a id="songCreator" target="_blank" rel="noopeneer noreferrer"></a> &middot;
 		<span id="songCreatedTime"></span> &middot;
 		<span id="songCommentCount" class="nowrap"></span> &middot;
 		<span id="songVotes" class="nowrap"></span> &middot;
-		<a id="songVoteLink" target="_blank">👍 on GitHub</a>
+		<a id="songVoteLink" target="_blank" rel="noopeneer noreferrer">👍 on GitHub</a>
 	</div>
 	<div id="comments"></div>
 	<a id="moreCommentsLink" href="" class="hidden" onclick="moreComments(this); return false;">Load more comments</a>
-	<a id="songCommentingLink" target="_blank">Make a comment</a>
+	<a id="songCommentingLink" target="_blank" rel="noopeneer noreferrer">Make a comment</a>
 </div>
 
-<div id="footer"><a target="_blank" href="https://github.com/gamesforthebored/gamesforthebored.github.io">GitHub Pages</a> <img title="Vanilla JS" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAPBAMAAACB51W8AAAAJFBMVEX/ZgCJjnlmZmb///////////+qqqr////z2JCqqqoAAAD///+yFabeAAAAcUlEQVQokbWSwQ3AIAhFnbbdwG7QEDYgLkDYwLhcUaOhHloufk04+PJIwHA5E+LhyhkifOemlp0g6xFAYL1aAHmCmUp+gZXiAWqdYLJGREBhxAGKWOMCduliTAqSad2eO6hiMa0LpbJ1PP+gd9fe3/MArgg2b0oDyO8AAAAASUVORK5CYII="/></div>
+<div id="footer"><a target="_blank" rel="noopeneer noreferrer" href="https://github.com/gamesforthebored/gamesforthebored.github.io">GitHub Pages</a> <img title="Vanilla JS" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAAAPBAMAAACB51W8AAAAJFBMVEX/ZgCJjnlmZmb///////////+qqqr////z2JCqqqoAAAD///+yFabeAAAAcUlEQVQokbWSwQ3AIAhFnbbdwG7QEDYgLkDYwLhcUaOhHloufk04+PJIwHA5E+LhyhkifOemlp0g6xFAYL1aAHmCmUp+gZXiAWqdYLJGREBhxAGKWOMCduliTAqSad2eO6hiMa0LpbJ1PP+gd9fe3/MArgg2b0oDyO8AAAAASUVORK5CYII="/></div>
 
 </div>
 
@@ -379,7 +379,7 @@ function populateComments(comments, op, existingComments) {
 		commentDiv.innerHTML = 
 			'<span>'
 			+(i+1+existingComments)
-			+'. <a target="_blank" href="'
+			+'. <a target="_blank" rel="noopeneer noreferrer" href="'
 			+userLink(comment.user.login)
 			+'">@'+comment.user.login
 			+'</a>'
@@ -504,7 +504,7 @@ function addTableRow(item, useUpdatedTime) {
 		+ item.number
 		+ '">'
 		+ sanitize(item.title)
-		+ '</a></b> <a target="_blank" href="'
+		+ '</a></b> <a target="_blank" rel="noopeneer noreferrer" href="'
 		+ userLink(item.user.login)
 		+ '">@'
 		+ item.user.login
