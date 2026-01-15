@@ -73,13 +73,13 @@ a.logo {
 	pointer-events: none;
 	color: gray;
 }
-#firstLink, #previousLink, #nextLink, #songCommentingLink {
+#firstLink, #previousLink, #nextLink, #songCommentingLink, #songVoteLink {
 	display: none;
 }
 #nextLink {
 	text-align: right;
 }
-#firstLink[href], #previousLink[href], #songCommentingLink[href] {
+#firstLink[href], #previousLink[href], #songCommentingLink[href], #songVoteLink[href] {
 	display: inline-block;
 }
 #nextLink[href] {
@@ -150,9 +150,9 @@ a.logo {
 		<h3 id="songTitle" style="display:inline"></h3><br/>
 		<a id="songCreator" target="_blank" rel="noopeneer noreferrer"></a> &middot;
 		<span id="songCreatedTime"></span> &middot;
-		<span id="songCommentCount" class="nowrap"></span> &middot;
+		<span id="songCommentCount" class="nowrap"></span><span id="songVoteInfo"> &middot;
 		<span id="songVotes" class="nowrap"></span> &middot;
-		<a id="songVoteLink" target="_blank" rel="noopeneer noreferrer">👍 on GitHub</a>
+		<a id="songVoteLink" target="_blank" rel="noopeneer noreferrer">👍 on GitHub</a></span>
 	</div>
 	<div id="comments"></div>
 	<a id="moreCommentsLink" href="" class="hidden" onclick="moreComments(this); return false;">Load more comments</a>
@@ -196,6 +196,7 @@ const ELEMENTS = (function(ids) {
 	"songCommentingLink",
 	"songCommentCount",
 	"songVotes",
+	"songVoteInfo",
 	"comments",
 	"moreCommentsLink"
 ]);
@@ -209,6 +210,36 @@ function fetch(url, callback) {
 		}
 	};
 	xhr.send();
+}
+
+function fetchGist(gistID, callback) {
+	fetch("https://api.github.com/gists/" + gistID, function(xhr) {
+		if (xhr.status === 200 || xhr.status === 304) {
+			let response = JSON.parse(xhr.responseText);
+			callback(response);
+			return;
+		} else if (xhr.status === 403 || xhr.status === 404) {
+			console.log("github gist 4xx", xhr);
+		} else {
+			console.log("github gist error", xhr);
+		}
+		callback(false);
+	});
+}
+
+function fetchGistComments(gistID, callback) {
+	fetch("https://api.github.com/gists/" + gistID + "/comments?per_page=" + COMMENTS_PER_PAGE, function(xhr) {
+		if (xhr.status === 200 || xhr.status === 304) {
+			let response = JSON.parse(xhr.responseText);
+			callback(response);
+			return;
+		} else if (xhr.status === 403 || xhr.status === 404) {
+			console.log("github gist comments 4xx", xhr);
+		} else {
+			console.log("github gist comments error", xhr);
+		}
+		callback(false);
+	});
 }
 
 function getPagination(xhr) {
@@ -352,16 +383,25 @@ function userLink(username) {
 		+ username;
 }
 
-function populateSongInfo(song) {
+function populateSongInfo(song, isGist) {
 	ELEMENTS.songTitle.innerText = song.title;
 	ELEMENTS.songCreator.href = userLink(song.user.login);
 	ELEMENTS.songCreator.innerText = "@" + song.user.login;
 	ELEMENTS.songCreatedTime.innerHTML = ago(song.created_at);
 	ELEMENTS.songCommentCount.innerText = "💬"+song.comments;
-	ELEMENTS.songVotes.innerText = "👍"+song.reactions["+1"];
-	let issueLink = "https://github.com/"+DATA_REPO+"/issues/"+song.number;
-	ELEMENTS.songVoteLink.href = issueLink+"#issue-"+song.id;
-	ELEMENTS.songCommentingLink.href = issueLink;
+
+	if (isGist) {
+		ELEMENTS.songCommentingLink.href = "https://gist.github.com/"+song.user.login+"/"+song.id;
+		ELEMENTS.songVoteInfo.classList.add("hidden");
+	} else {
+		ELEMENTS.songVoteInfo.classList.remove("hidden");
+		ELEMENTS.songVotes.innerText = "👍"+song.reactions["+1"];
+		let issueLink = "https://github.com/"+DATA_REPO+"/issues/"+song.number;
+		ELEMENTS.songVoteLink.href = issueLink+"#issue-"+song.id;
+		ELEMENTS.songCommentingLink.href = issueLink;
+	}
+
+
 	ELEMENTS.frame.src = "tonalitypad.html#raw/";
 	ELEMENTS.frame.src = "tonalitypad.html#raw/" + encodeRaw(song.body);
 	ELEMENTS.songInfo.classList.remove("hidden");
@@ -427,6 +467,36 @@ function moreComments(element) {
 			}
 		});
 	}
+}
+
+function setGist(gistID) {
+	removeCommentPagination();
+	fetchGist(gistID, function(response){
+		if (response) {
+			// we only care about the first file
+			let file = response.files[Object.keys(response.files)[0]];
+			let body = (file && file.content) || "";
+			let song = {
+				title: response.description || "[Untitled]",
+				user: response.owner,
+				created_at: response.created_at,
+				comments: response.comments,
+				id: response.id,
+				body: body
+			};
+			populateSongInfo(song, true/*isGist*/);
+		} else {
+			alert("Song not found! Check that your link is correct, or try again later.");
+		}
+	});
+	fetchGistComments(gistID, function(response){
+		if (response) {
+			populateComments(response, "", 0);
+			// todo: pagination?
+		} else {
+			console.log("error");
+		}
+	});
 }
 
 function setSong(songNumber) {
@@ -551,6 +621,19 @@ function refreshHash() {
 		});
 		if (!hash && !window.location.href.endsWith("#")) {
 			ELEMENTS.frame.src = "tonalitypad.html";
+		}
+	} else if (hashSlice.startsWith("gist/")) {
+		// Show individual song (from Gist)
+		let hashSplit = hashSlice.split("/");
+		if (hashSplit.length === 2) {
+			ELEMENTS.songPage.classList.remove("hidden");
+			ELEMENTS.homePage.classList.add("hidden");
+			// fetch content from Gist
+			let gistID = hashSplit[1];
+			setGist(gistID);
+		} else {
+			window.location.hash = "";
+			console.log("Invalid link!");
 		}
 	} else {
 		// Show individual song
