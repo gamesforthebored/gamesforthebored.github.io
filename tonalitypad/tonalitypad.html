@@ -12,7 +12,7 @@
 	border-radius: 5px;
 	padding: 2px;
 	width: 796px;
-	min-height: 302px;
+	min-height: 298px;
 	height: calc(100vh - 358px);
 }
 #controls {
@@ -24,7 +24,7 @@
 }
 textarea, #highlights {
 	width: 800px;
-	min-height: 300px;
+	min-height: 296px;
 	height: calc(100vh - 360px);
 	margin: 0;
 	border: 0;
@@ -111,7 +111,6 @@ textarea, #highlights {
 #highlights .active.dissonant {
 	background-color: #0a0;
 }
-
 #playButton, .blockedWhilePlaying {
 	cursor: pointer;
 }
@@ -256,8 +255,6 @@ span.narrow {
 
 <div id="controls">
 	<div style="float:left" id="playControls">
-		<!--<span class="blockedWhilePlaying" onclick="shareLink()">#️⃣</span>
-		<span id="copiedTooltip">Copied link</span>-->
 		<span onclick="skipToStart()" style="cursor: pointer">⏪</span>
 		<span onclick="playSong()" id="playButton">▶️</span>
 		<span class="blockedWhilePlaying" onclick="startRecording()" id="recordButton">⏺</span>
@@ -1211,7 +1208,9 @@ function play(compiled, cursorPosition) {
 			}
 		}
 	}
-	let playbackStartTime = cursorNote ? cursorNote[0] : 0;
+	let playbackStartTime = cursorNote ?
+		Math.max(0,cursorNote[0]-0.000000001) : // allowance for floating-point errors
+		0;
 	let lastEndTime = 0;
 	if (PLAYBACK_STATE.recording) {
 		AUDIO.recorder.start();
